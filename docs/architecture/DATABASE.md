@@ -1,5 +1,33 @@
 # Banco de dados — diretrizes e modelo atual
 
+## Modelos implementados (Etapa 3)
+
+Migration: `database/prisma/migrations/20261009205135_etapa3_sales_pdv`.
+
+| Modelo | Campos principais | Restrições/índices |
+|---|---|---|
+| `Sale` | `companyId` (FK `Restrict`), `receiptCode`, `clientRequestId?`, `status` (enum `SaleStatus`), `subtotal`/`discount`/`total` `Decimal(12,2)`, `paymentMethod` (enum `PaymentMethod`), `paymentNote?`, `createdByUserId` (FK `Restrict`), `cancelledAt?`, `cancelledByUserId?` (FK `SetNull`), `cancelReason?`, `createdAt`, `items` | únicos `(companyId, receiptCode)` e `(companyId, clientRequestId)` (NULLs não conflitam); índices `(companyId, createdAt)`, `(companyId, status)`; sem `updatedAt` — venda concluída só muda por cancelamento |
+| `SaleItem` | `saleId` (FK `Restrict`), `productId` (FK `Restrict`), `productName`, `productSku?`, `unit` (enum `ProductUnit`), `unitPrice` `Decimal(12,2)`, `quantity` `Decimal(12,3)`, `subtotal` `Decimal(12,2)` | índice `(saleId)`; snapshot imutável de nome/SKU/unidade/preço no momento da venda |
+
+Enums novos:
+
+- `PaymentMethod`: `CASH`, `CARD`, `PIX`, `OTHER`.
+- `SaleStatus`: `COMPLETED`, `CANCELLED` (cancelamento lógico — nenhuma
+  exclusão física de venda ou item).
+
+Regras derivadas:
+
+- Preços e totais **recalculados no servidor** a partir de
+  `Product.salePrice`; valores do cliente nunca entram na gravação.
+- Criação da venda, itens, baixa de estoque e movimentos `OUT` ocorrem em
+  **uma única transação**, com lock `FOR UPDATE` dos produtos em ordem
+  de `id` (mesma regra de ordenação no cancelamento — evita deadlock).
+- `clientRequestId` torna a criação **idempotente**: reenvio/duplo clique
+  → 409, sem segunda venda nem dupla baixa.
+- Cancelamento devolve estoque com movimentos `IN` usando
+  `reference = receiptCode`; `updateMany({ status: COMPLETED })` garante
+  devolução única (corrida entre cancelamentos → 409).
+
 ## Modelos implementados (Etapa 2)
 
 Migration: `database/prisma/migrations/20261009194843_etapa2_products_stock`.

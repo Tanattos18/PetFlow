@@ -45,6 +45,18 @@ enum StockMovementType {
   ADJUST_NEGATIVE
 }
 
+enum PaymentMethod {
+  CASH
+  CARD
+  PIX
+  OTHER
+}
+
+enum SaleStatus {
+  COMPLETED
+  CANCELLED
+}
+
 model Company {
   id        String        @id @default(cuid())
   name      String
@@ -57,6 +69,7 @@ model Company {
   suppliers  Supplier[]
   products   Product[]
   stockMovements StockMovement[]
+  sales      Sale[]
 }
 
 model User {
@@ -72,6 +85,8 @@ model User {
   updatedAt    DateTime   @updatedAt
   sessions     Session[]
   stockMovements StockMovement[]
+  salesCreated   Sale[] @relation("SaleCreatedBy")
+  salesCancelled Sale[] @relation("SaleCancelledBy")
 
   @@unique([companyId, email])
   @@index([companyId, status])
@@ -148,6 +163,7 @@ model Product {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
   movements     StockMovement[]
+  saleItems     SaleItem[]
 
   @@unique([companyId, sku])
   @@unique([companyId, barcode])
@@ -171,4 +187,47 @@ model StockMovement {
 
   @@index([companyId, productId, createdAt])
   @@index([companyId, createdAt])
+}
+
+model Sale {
+  id                String           @id @default(cuid())
+  companyId         String
+  company           Company          @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  receiptCode       String
+  clientRequestId   String?
+  status            SaleStatus       @default(COMPLETED)
+  subtotal          Decimal          @db.Decimal(12, 2)
+  discount          Decimal          @default(0) @db.Decimal(12, 2)
+  total             Decimal          @db.Decimal(12, 2)
+  paymentMethod     PaymentMethod
+  paymentNote       String?
+  createdByUserId   String
+  createdBy         User             @relation("SaleCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  cancelledAt       DateTime?
+  cancelledByUserId String?
+  cancelledBy       User?            @relation("SaleCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: SetNull)
+  cancelReason      String?
+  createdAt         DateTime         @default(now())
+  items             SaleItem[]
+
+  @@unique([companyId, receiptCode])
+  @@unique([companyId, clientRequestId])
+  @@index([companyId, createdAt])
+  @@index([companyId, status])
+}
+
+model SaleItem {
+  id          String   @id @default(cuid())
+  saleId      String
+  sale        Sale     @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productName String
+  productSku  String?
+  unit        ProductUnit
+  unitPrice   Decimal  @db.Decimal(12, 2)
+  quantity    Decimal  @db.Decimal(12, 3)
+  subtotal    Decimal  @db.Decimal(12, 2)
+
+  @@index([saleId])
 }

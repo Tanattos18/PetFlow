@@ -93,6 +93,44 @@ Payloads: `{ productId, quantity, notes?, reference? }` (entrada/saída) e
 movimentação: `{ movement, stockQuantity }` — saldo sempre calculado no
 servidor, dentro da transação com lock.
 
+## Vendas (Etapa 3)
+
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| POST | `/api/sales` | sessão | Cria venda; recalcula tudo no servidor |
+| GET | `/api/sales` | sessão | Histórico paginado; filtros `status`, `search` (código), `from`/`to` (`YYYY-MM-DD`, UTC) |
+| GET | `/api/sales/:id` | sessão | Detalhe com itens (snapshots) |
+| POST | `/api/sales/:id/cancel` | ADMIN | Cancela com `reason`; devolve estoque |
+
+Payload de criação:
+
+```json
+{
+  "items": [{ "productId": "cuid", "quantity": "3" }],
+  "discount": "10.00",
+  "paymentMethod": "PIX",
+  "paymentNote": null,
+  "clientRequestId": "uuid-gerado-pelo-cliente"
+}
+```
+
+- **Nunca** enviar preços/totais: `unitPrice`, `subtotal` e `total`
+  enviados pelo cliente são descartados; o servidor usa `salePrice` do
+  banco. Desconto `>` subtotal → 400; quantidade inválida ou produto
+  inativo/estrangeiro à empresa → 400/404.
+- `clientRequestId` (obrigatório no frontend, único por empresa) torna a
+  criação idempotente: repetição → **409** sem alterar estoque.
+- Resposta: `{ id, receiptCode, status, subtotal, discount, total,
+  paymentMethod, paymentNote, createdAt, createdBy, items: [...] }` —
+  Decimals serializados como string (`"259.70"`).
+- Cancelamento: `POST :id/cancel` com `{ reason }` (mín. 3 caracteres);
+  venda já cancelada → **409**; venda de outra empresa → **404**;
+  membro comum → **403**. Devolve estoque com movimentos `IN`
+  compensatórios (`reference = receiptCode`) na mesma transação.
+
+Busca de produtos no PDV reaproveita `GET /api/products?search=&status=ACTIVE`
+(nome, SKU ou código de barras).
+
 ## Padrão para módulos futuros
 
 1. Modelo sempre com `companyId` + FK `Restrict` e índices por empresa.

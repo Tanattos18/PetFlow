@@ -1,0 +1,88 @@
+# PETFLOW — ETAPA 3: VENDAS E PDV
+
+Implemente exclusivamente o módulo de Vendas e Ponto de Venda (PDV), integrado aos módulos existentes de autenticação, multiempresa, produtos e estoque.
+
+Repositório oficial: https://github.com/Tanattos18/PetFlow.git
+
+## 1. Antes de começar
+- Leia `AGENTS.md`, `PROJECT_STATUS.md`, `IMPLEMENTATION_CHECKLIST.md`, `CHANGELOG.md`, `DEVELOPMENT.md` e a documentação da arquitetura.
+- Inspecione o código real, o banco, os testes e o estado do Git.
+- Confirme que as Etapas 1 e 2 estão funcionais. Se autenticação, isolamento multiempresa ou consistência do estoque apresentarem falhas críticas, pare e apresente o diagnóstico antes de implementar.
+- Preserve alterações existentes e nunca exponha segredos.
+
+## 2. Funcionalidades
+Implemente:
+- PDV responsivo com busca de produtos por nome, SKU ou código de barras.
+- Carrinho com inclusão, remoção e alteração de quantidades.
+- Cálculo de subtotal, desconto e total.
+- Registro da forma de pagamento: dinheiro, cartão, Pix ou outra opção configurada.
+- Finalização da venda.
+- Comprovante simples imprimível pelo navegador.
+- Histórico de vendas, detalhes e filtros.
+- Cancelamento autorizado, com motivo e registro de auditoria.
+
+O registro da forma de pagamento não representa integração com bancos, maquininhas ou processadores de pagamento.
+
+## 3. Regras de negócio
+- O backend deve recalcular preços e totais usando os dados do banco. Nunca confie nos valores enviados pelo frontend.
+- Utilize tipos decimais para valores monetários.
+- Rejeite quantidades inválidas, produtos inativos e descontos negativos ou superiores ao subtotal.
+- Por padrão, não permita estoque negativo.
+- Finalização da venda, gravação dos itens e baixa do estoque devem ocorrer em uma única transação.
+- Evite vendas duplicadas causadas por reenvio ou duplo clique.
+- Preserve snapshots do nome, SKU e preço dos produtos no momento da venda.
+- Não apague vendas concluídas fisicamente.
+- Cancelamentos exigem autorização e motivo, registram responsável e data e geram movimentos compensatórios de estoque.
+- Um cancelamento não pode devolver o estoque duas vezes.
+
+## 4. Segurança multiempresa
+- Obtenha a empresa a partir da sessão autenticada no servidor.
+- Nunca use o `companyId` recebido do frontend como autorização.
+- Verifique se cada produto e venda pertencem à empresa autenticada.
+- Reutilize os papéis e permissões já implementados.
+- Teste tentativas de consultar ou cancelar vendas de outra empresa.
+- Não enfraqueça os controles de segurança existentes.
+
+## 5. API e interface
+Siga os padrões atuais do NestJS, Next.js e Prisma. Implemente endpoints para criar vendas, consultar histórico e detalhes, pesquisar produtos disponíveis e cancelar vendas.
+
+No frontend, conecte todas as telas à API real. Inclua validação, carregamento, erros, confirmação de finalização, confirmação de cancelamento e tratamento de sessão expirada.
+
+Não implemente nesta etapa o caixa e financeiro completo, clientes e pets, serviços, agendamentos, WhatsApp, dashboard, assinaturas comerciais ou emissão fiscal.
+
+## 6. Testes
+Teste:
+- Vendas válidas com um ou vários produtos.
+- Produtos inexistentes, inativos ou de outra empresa.
+- Quantidades inválidas e estoque insuficiente.
+- Descontos inválidos e adulteração de totais no frontend.
+- Consistência transacional entre venda e estoque.
+- Vendas concorrentes e prevenção de estoque negativo.
+- Histórico e snapshots.
+- Cancelamento com autorização, motivo e reversão única.
+- Isolamento multiempresa.
+- Lint, typecheck, testes e build.
+
+Use PostgreSQL real para validar transações quando disponível. Registre com transparência tudo o que não puder ser testado.
+
+## 7. Documentação
+Atualize `IMPLEMENTATION_CHECKLIST.md`, `PROJECT_STATUS.md`, `CHANGELOG.md` e os documentos de arquitetura, banco e API. Marque itens como concluídos somente quando houver evidência.
+
+## 8. Git e GitHub — obrigatório
+Repositório: https://github.com/Tanattos18/PetFlow.git
+
+- Verifique `git status`, branch, histórico e remoto antes de alterar e antes de commitar.
+- Preserve alterações preexistentes e não inclua arquivos alheios à etapa.
+- Revise as alterações e confirme que segredos, `.env` e credenciais não serão commitados.
+- Execute as validações antes do commit.
+- Faça commit somente dos arquivos desta etapa e da documentação relacionada.
+- Use uma mensagem clara, como `feat(etapa-3): implementa vendas e ponto de venda`.
+- Faça push para a branch correta quando for seguro e a autenticação estiver configurada.
+- Confirme o hash do commit, a branch, o resultado do push e o estado final do Git.
+- Nunca use force push nem descarte alterações para resolver conflitos.
+- Se commit ou push falhar, informe o motivo real; não afirme que foram concluídos sem confirmação.
+
+## 9. Relatório final
+Apresente as funcionalidades implementadas, arquivos alterados, migrations, endpoints, resultados exatos dos testes, pendências e dados do commit/push.
+
+**Pare ao concluir a Etapa 3 e aguarde autorização explícita. Não comece a Etapa 4 — Caixa e financeiro — automaticamente.**

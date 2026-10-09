@@ -93,6 +93,18 @@ Etapa 1; os demais endpoints ficam em `/api/...`.
 - Saldo é sempre calculado no servidor (transação + lock); não existe
   endpoint para "setar" saldo diretamente.
 
+## Vendas e PDV (Etapa 3)
+
+- Endpoints, payloads e permissões: `docs/architecture/API.md`.
+- `/pdv` busca produtos via `GET /api/products?search=&status=ACTIVE`;
+  o carrinho é estado local — valores exibidos são calculados para UX, mas
+  o servidor recalcula tudo na finalização.
+- `clientRequestId` (UUID por intenção de venda) é reutilizado em caso de
+  falha de rede e regenerado após o sucesso — assim o retry não duplica a
+  venda e o clique duplo recebe 409.
+- Testes de vendas (transações, concorrência, cancelamento) rodam no
+  `petflow_test` via `npm test`; a migration é aplicada no setup.
+
 ## Estrutura rápida
 
 Ver `docs/architecture/ARCHITECTURE.md` e o `README.md` na raiz.

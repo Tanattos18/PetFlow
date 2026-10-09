@@ -249,3 +249,70 @@ export const listMovementsQuerySchema = paginationQuerySchema.extend({
   type: stockMovementTypeSchema.optional(),
 });
 export type ListMovementsQuery = z.infer<typeof listMovementsQuerySchema>;
+
+// ---------------------------------------------------------------------------
+// Etapa 3 — vendas e PDV
+// ---------------------------------------------------------------------------
+
+export const paymentMethodSchema = z.enum(["CASH", "CARD", "PIX", "OTHER"]);
+export type PaymentMethod = z.infer<typeof paymentMethodSchema>;
+
+export const saleStatusSchema = z.enum(["COMPLETED", "CANCELLED"]);
+export type SaleStatus = z.infer<typeof saleStatusSchema>;
+
+export const paymentMethodLabels: Record<PaymentMethod, string> = {
+  CASH: "Dinheiro",
+  CARD: "Cartão",
+  PIX: "Pix",
+  OTHER: "Outro",
+};
+
+export const saleStatusLabels: Record<SaleStatus, string> = {
+  COMPLETED: "Concluída",
+  CANCELLED: "Cancelada",
+};
+
+export const createSaleItemSchema = z.object({
+  productId: z.string().trim().min(1, "Produto é obrigatório").max(60),
+  quantity: positiveQuantityFieldSchema,
+});
+export type CreateSaleItemInput = z.infer<typeof createSaleItemSchema>;
+
+export const createSaleSchema = z.object({
+  items: z
+    .array(createSaleItemSchema)
+    .min(1, "Informe ao menos um produto")
+    .max(100, "Venda pode ter no máximo 100 itens distintos"),
+  discount: priceFieldSchema.default("0"),
+  paymentMethod: paymentMethodSchema,
+  paymentNote: optionalText(300),
+  clientRequestId: z
+    .string()
+    .trim()
+    .min(8, "Identificador de requisição inválido")
+    .max(64, "Identificador de requisição inválido")
+    .optional(),
+});
+export type CreateSaleInput = z.infer<typeof createSaleSchema>;
+
+export const cancelSaleSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Motivo é obrigatório para cancelamento")
+    .max(500, "Motivo deve ter no máximo 500 caracteres"),
+});
+export type CancelSaleInput = z.infer<typeof cancelSaleSchema>;
+
+const dateField = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD");
+
+export const listSalesQuerySchema = paginationQuerySchema.extend({
+  status: saleStatusSchema.optional(),
+  search: z.string().trim().max(120).optional(),
+  from: dateField.optional(),
+  to: dateField.optional(),
+});
+export type ListSalesQuery = z.infer<typeof listSalesQuerySchema>;

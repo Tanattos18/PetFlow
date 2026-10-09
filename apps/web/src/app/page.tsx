@@ -13,7 +13,12 @@ const plannedModules = [
     href: "/produtos",
     available: true,
   },
-  { name: "Vendas e PDV", description: "Frente de caixa e histórico de vendas" },
+  {
+    name: "Vendas e PDV",
+    description: "Frente de caixa, comprovantes e histórico de vendas",
+    href: "/pdv",
+    available: true,
+  },
   { name: "Caixa e financeiro", description: "Movimentações e conciliação" },
   { name: "Clientes e animais", description: "Cadastro de tutores e pets" },
   { name: "Serviços e agendamentos", description: "Banho, tosa e agenda" },
@@ -70,6 +75,18 @@ export default function HomePage() {
             </p>
           </div>
           <div className="flex gap-2">
+            <Link
+              href="/pdv"
+              className="rounded-md bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-800"
+            >
+              Abrir PDV
+            </Link>
+            <Link
+              href="/vendas"
+              className="rounded-md border border-teal-700 px-3 py-2 text-sm font-medium text-teal-800 hover:bg-teal-100"
+            >
+              Vendas
+            </Link>
             <Link
               href="/produtos"
               className="rounded-md border border-teal-700 px-3 py-2 text-sm font-medium text-teal-800 hover:bg-teal-100"

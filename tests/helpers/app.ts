@@ -21,6 +21,8 @@ export async function createTestApp(): Promise<{
 }
 
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
+  await prisma.saleItem.deleteMany();
+  await prisma.sale.deleteMany();
   await prisma.stockMovement.deleteMany();
   await prisma.product.deleteMany();
   await prisma.category.deleteMany();

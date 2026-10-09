@@ -2,6 +2,56 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Etapa 3] — 2026-10-09
+
+### Adicionado
+
+- Schema Prisma: modelos `Sale` e `SaleItem` (+ enums `PaymentMethod`,
+  `SaleStatus`) e migration `20261009205135_etapa3_sales_pdv` aplicada em
+  `petflow` e `petflow_test`.
+- API NestJS (prefixo `/api`, todos sob `AuthGuard` global):
+  - `sales`: `POST /sales` (criação), `GET /sales` (histórico com filtros
+    de status, código e período), `GET /sales/:id` (detalhe),
+    `POST /sales/:id/cancel` (ADMIN).
+- Criação de venda em **transação única**: lock `FOR UPDATE` dos produtos
+  em ordem determinística, recálculo de preços/totais com os valores do
+  banco (nunca do cliente), gravação da venda + itens (snapshot de nome,
+  SKU, unidade, preço e quantidade), baixa de estoque e movimentos `OUT`
+  com `reference` = código do comprovante.
+- Prevenção de venda duplicada: `clientRequestId` com
+  `@@unique([companyId, clientRequestId])` → reenvio/duplo clique
+  respondem 409 sem alterar estoque; código de comprovante `PF-XXXXXXXX`
+  único por empresa.
+- Cancelamento de venda (ADMIN): motivo obrigatório (mín. 3), marca
+  `CANCELLED` com autor/data via `updateMany` condicional (segundo
+  cancelamento → 409, nunca devolve estoque duas vezes) e devolve o saldo
+  com movimentos `IN` compensatórios; venda concluída nunca é apagada.
+- Schemas Zod compartilhados em `@petflow/shared`: `createSaleSchema`,
+  `createSaleItemSchema`, `cancelSaleSchema`, `listSalesQuerySchema`,
+  enums e labels de pagamento/status.
+- Frontend: `/pdv` (busca de produtos por nome/SKU/código de barras,
+  carrinho com quantidades, desconto, formas de pagamento
+  Dinheiro/Cartão/Pix/Outro, finalização com confirmação, comprovante
+  imprimível em nova janela), `/vendas` (histórico com filtros de status,
+  código e período + paginação), `/vendas/[id]` (detalhe com itens,
+  comprovante, cancelamento com motivo e confirmação); home exibe
+  "Vendas e PDV" como módulo disponível.
+- Testes de integração com PostgreSQL real: 28 novos testes
+  (`sales.test.ts`), totalizando 104 — incluem adulteração de totais,
+  reenvio idempotente, concorrência, snapshots, cancelamento único e
+  isolamento multiempresa.
+- Validação E2E manual: 25/25 verificações (venda com desconto
+  recalculada, estoque baixado/devolvido, 409 em reenvio e
+  recancelamento, páginas `/pdv`, `/vendas` e detalhe).
+
+### Regras de negócio registradas
+
+- Backend sempre recalcula preços e totais; valores enviados pelo frontend
+  são ignorados.
+- Venda, itens e baixa de estoque em uma única transação; estoque negativo
+  nunca é permitido.
+- Vendas concluídas são preservadas (cancelamento lógico com auditoria).
+
 ## [Etapa 2] — 2026-10-09
 
 ### Adicionado

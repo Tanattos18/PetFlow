@@ -8,6 +8,7 @@ import { CategoriesModule } from "./categories/categories.module";
 import { SuppliersModule } from "./suppliers/suppliers.module";
 import { ProductsModule } from "./products/products.module";
 import { StockModule } from "./stock/stock.module";
+import { SalesModule } from "./sales/sales.module";
 import { AuthGuard } from "./common/guards/auth.guard";
 
 @Module({
@@ -19,6 +20,7 @@ import { AuthGuard } from "./common/guards/auth.guard";
     SuppliersModule,
     ProductsModule,
     StockModule,
+    SalesModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: AuthGuard }],

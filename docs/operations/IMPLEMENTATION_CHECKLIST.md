@@ -79,11 +79,47 @@ Escopo definido em `Etapas_projeto/PetFlow_Prompt_OpenCode_Etapa_2.md`.
       ARCHITECTURE, AGENTS)
 - [x] Commit e push (ver relatório final / PROJECT_STATUS)
 
+## Etapa 3 — Vendas e PDV (2026-10-09)
+
+- [x] Etapa 2 confirmada funcional (76/76 testes antes de iniciar)
+- [x] Schema: `Sale`, `SaleItem`; enums `PaymentMethod`, `SaleStatus`;
+      migration `20261009205135_etapa3_sales_pdv` aplicada em `petflow` e
+      `petflow_test`; `npm run db:validate` OK
+- [x] `POST /api/sales`: recálculo de preços/totais no servidor, snapshot
+      de nome/SKU/preço nos itens, baixa de estoque + movimentos `OUT` na
+      mesma transação, lock `FOR UPDATE` dos produtos
+- [x] Prevenção de venda duplicada (`clientRequestId` idempotente → 409) e
+      código de comprovante (`PF-XXXXXXXX`) único por empresa
+- [x] Rejeições: produto inexistente/inativo/de outra empresa (404/400),
+      quantidade zero/negativa, estoque insuficiente, desconto negativo ou
+      acima do subtotal; adulteração de preços/totais pelo cliente
+      ignorada (servidor recalcula)
+- [x] `GET /api/sales` (histórico paginado, filtros status/código/período)
+      e `GET /api/sales/:id` (detalhe com itens e snapshots)
+- [x] `POST /api/sales/:id/cancel`: ADMIN, motivo obrigatório, devolução
+      única de estoque com movimentos `IN` compensatórios, auditoria
+      (autor/data/motivo), venda nunca apagada fisicamente
+- [x] Frontend: `/pdv` (busca por nome/SKU/barcode, carrinho com
+      quantidades, desconto, formas de pagamento, finalização com
+      confirmação e comprovante imprimível), `/vendas` (histórico com
+      filtros), `/vendas/[id]` (detalhe + cancelamento com motivo e
+      confirmação); sessão expirada redireciona para `/login`
+- [x] Testes: 104/104 aprovados em PostgreSQL real (28 novos: validações,
+      snapshots, idempotência, concorrência, cancelamento único,
+      isolamento multiempresa)
+- [x] `npm run lint`, `npm run typecheck`, `npm run build` OK
+- [x] Validação E2E manual: 25/25 verificações (venda 3× com desconto →
+      total do banco, estoque 10→7→10 no cancelamento, reenvio e
+      recancelamento 409, páginas 200)
+- [x] Documentação atualizada (CHANGELOG, STATUS, DATABASE, API,
+      DEVELOPMENT, ARCHITECTURE)
+- [x] Commit e push (ver relatório final / PROJECT_STATUS)
+
 ## Etapas futuras — módulos de negócio
 
 - [ ] Cadastro de clientes e animais
-- [ ] Produtos e estoque
-- [ ] Vendas e PDV
+- [x] Produtos e estoque (Etapa 2)
+- [x] Vendas e PDV (Etapa 3)
 - [ ] Caixa e financeiro
 - [ ] Serviços e agendamentos
 - [ ] Automação WhatsApp

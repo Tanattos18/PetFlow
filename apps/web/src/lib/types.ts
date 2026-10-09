@@ -110,3 +110,47 @@ export interface StockMovementResult {
   movement: MovementDto;
   stockQuantity: string;
 }
+
+export type PaymentMethod = "CASH" | "CARD" | "PIX" | "OTHER";
+
+export const paymentMethodLabels: Record<PaymentMethod, string> = {
+  CASH: "Dinheiro",
+  CARD: "Cartão",
+  PIX: "Pix",
+  OTHER: "Outro",
+};
+
+export type SaleStatus = "COMPLETED" | "CANCELLED";
+
+export const saleStatusLabels: Record<SaleStatus, string> = {
+  COMPLETED: "Concluída",
+  CANCELLED: "Cancelada",
+};
+
+export interface SaleItemDto {
+  id: string;
+  productId: string;
+  productName: string;
+  productSku: string | null;
+  unit: ProductUnit;
+  unitPrice: string;
+  quantity: string;
+  subtotal: string;
+}
+
+export interface SaleDto {
+  id: string;
+  receiptCode: string;
+  status: SaleStatus;
+  subtotal: string;
+  discount: string;
+  total: string;
+  paymentMethod: PaymentMethod;
+  paymentNote: string | null;
+  createdAt: string;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  createdBy: { id: string; name: string };
+  cancelledBy: { id: string; name: string } | null;
+  items: SaleItemDto[];
+}

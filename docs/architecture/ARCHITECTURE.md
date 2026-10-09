@@ -116,3 +116,29 @@ tests/        → testes compartilhados/integração
 - **Alerta de estoque baixo**: `ACTIVE` + `minimumStock > 0` +
   `stockQuantity <= minimumStock` (produtos sem mínimo definido não geram
   alerta).
+
+## Módulo vendas e PDV (Etapa 3)
+
+- **Fonte de verdade dos preços é o banco**: na criação da venda o
+  backend bloqueia os produtos (`FOR UPDATE` em ordem de `id`), recalcula
+  subtotal/total com `Product.salePrice` e grava venda + itens + baixa de
+  estoque + movimentos `OUT` em uma única transação. Frontend envia
+  apenas `productId`, `quantity`, `discount` e `paymentMethod`.
+- **Idempotência contra duplo clique**: `clientRequestId` (UUID gerado no
+  cliente) com unique por empresa → reenvio responde 409 e nada muda.
+  Alternativa descartada: desabilitar o botão apenas (não protege contra
+  reenvio por rede/retentativa).
+- **Código de comprovante** `PF-XXXXXXXX` único por empresa (letras sem
+  ambiguidade), gerado no servidor — não há numeração sequencial por
+  empresa (evitaria lock global no `Company`).
+- **Snapshots em `SaleItem`** (nome, SKU, unidade, preço, quantidade):
+  renomeações/inativações futuras do produto não alteram vendas antigas.
+- **Cancelamento lógico com auditoria**: status `CANCELLED` + motivo +
+  autor + data; venda nunca é apagada. Devolução de estoque em transação
+  com `updateMany({ status: COMPLETED })` → apenas o primeiro cancelamento
+  devolve (corrida → 409, estoque nunca devolvido duas vezes).
+- **Permissões**: criar/consultar vendas para qualquer usuário
+  autenticado (frente de caixa); cancelamento restrito a `ADMIN`.
+- **Comprovante imprimível**: HTML mínimo gerado em nova janela
+  (`window.open` + `window.print`), independente de CSS da aplicação;
+  pop-up bloqueado → aviso ao usuário.
