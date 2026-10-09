@@ -63,7 +63,10 @@ autenticação/permissão negadas e isolamento multiempresa.
 ## Git
 
 - Branch: `main`; remoto: `origin` → `https://github.com/Tanattos18/PetFlow.git`.
-- Commits da Etapa 1 e Etapa 2 (hashes registrados no relatório final).
+- `3b77828` feat(etapa-1): autenticação, usuários, permissões e multiempresa
+- `6a36407` feat(etapa-2): implementa produtos e controle de estoque
+- Push confirmado: `85fbeb0..6a36407 main -> main` (árvore de trabalho limpa,
+  em sincronia com `origin/main`).
 
 ## Próxima etapa autorizada
 
