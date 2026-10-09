@@ -76,8 +76,9 @@ multiempresa (detalhe/cancelamento de outra empresa → 404).
 - `3b77828` feat(etapa-1): autenticação, usuários, permissões e multiempresa
 - `6a36407` feat(etapa-2): implementa produtos e controle de estoque
 - `e305d52` docs: registra hashes dos commits e push da etapa 2
-- Commit da Etapa 3: `feat(etapa-3): implementa vendas e ponto de venda`
-  (hash registrado após o push).
+- `912d1c8` feat(etapa-3): implementa vendas e ponto de venda
+- Push confirmado: `e305d52..912d1c8 main -> main` (árvore de trabalho
+  limpa, em sincronia com `origin/main`).
 
 ## Próxima etapa autorizada
 
