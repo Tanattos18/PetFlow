@@ -2,6 +2,71 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Etapa 4] — 2026-10-09
+
+### Adicionado
+
+- Schema Prisma: modelos `CashSession` e `CashMovement` (+ enums
+  `CashSessionStatus`, `CashMovementType`, `CashMovementOrigin`), campo
+  `Sale.cashSessionId` (FK `SetNull`) e migration
+  `20261009212628_etapa4_cash_finance` aplicada em `petflow` e
+  `petflow_test`; ledger imutável com único `(origin, saleId)`.
+- API NestJS (prefixo `/api`, sob `AuthGuard` global, módulo `cash`):
+  - `POST /cash/sessions` e `POST /cash/sessions/:id/close` (ADMIN),
+    `GET /cash/sessions/current` (404 sem sessão aberta),
+    `GET /cash/sessions`, `GET /cash/sessions/:id/summary`.
+  - `POST /cash/movements` (ADMIN) e `GET /cash/movements` (filtros
+    período/sessão/tipo/origem + paginação).
+  - `POST /cash/movements/:id/reversal` (ADMIN) — estorno auditável.
+  - `GET /cash/summary` — resumo financeiro por período/sessão calculado
+    no servidor (vendas, manuais, cancelamentos, estornos, entradas,
+    saídas, líquido).
+- Uma **única sessão aberta por empresa**: abertura serializada com
+  `SELECT ... FOR UPDATE` na `Company` (duplicidade → 409); fechamento
+  calcula `expected = inicial + Σ(IN inCash) − Σ(OUT inCash)` e
+  `difference = contado − expected` no servidor.
+- **Vendas e cancelamentos exigem caixa aberto** (409 `"Caixa fechado:
+  abra o caixa para ..."`); na mesma transação a venda grava
+  `cashSessionId` e cria lançamento `SALE` (`inCash` = venda em
+  dinheiro); cancelamento cria lançamento `SALE_CANCELMENT` único.
+- Movimentações manuais (`IN`/`OUT`, `origin = MANUAL`, `inCash = true`)
+  com sessão aberta; saída exige justificativa (mín. 3).
+- Estorno: apenas `MANUAL` não estornado na sessão aberta; cria
+  `REVERSAL` do tipo oposto e marca o original (`reversedAt` via
+  `updateMany` condicional — duplo estorno → 409); estorno de venda → 400.
+- Schemas Zod compartilhados em `@petflow/shared`:
+  `openCashSessionSchema`, `closeCashSessionSchema`,
+  `createCashMovementSchema`, `reversalCashMovementSchema`,
+  `listCashMovementsQuerySchema`, `cashSummaryQuerySchema`, enums e
+  labels.
+- Frontend: `/caixa` (situação, abertura, movimentações recentes e form
+  de entrada/saída), `/caixa/fechar` (saldo esperado vs. contado),
+  `/caixa/movimentos` (filtros + estorno com motivo),
+  `/caixa/sessoes` (histórico com totais/diferença), `/financeiro`
+  (resumo por período); `/pdv` exibe banner "Caixa fechado" e bloqueia a
+  finalização; home marca "Caixa e financeiro" como disponível.
+- Testes de integração com PostgreSQL real: 37 novos testes
+  (`cash.test.ts`), totalizando 141 — incluem integração com vendas
+  (`inCash` CASH vs. Pix), cancelamento único, estorno (400/403/409),
+  fechamento com diferença, resumo por período, isolamento multiempresa
+  e 4 aberturas concorrentes (exatamente 1 sucesso).
+- `tests/sales.test.ts` passa a abrir caixa no `beforeAll` (regra nova).
+- Validação E2E manual: 30/30 verificações (venda com caixa fechado 409,
+  abertura, `inCash` nas duas formas de pagamento, saída sem justificativa
+  400, cancelamento único, duplo estorno 409, resumo, fechamento com
+  diferença −2.50, duplo fechamento 409, reabertura e páginas 200).
+
+### Regras de negócio registradas
+
+- Uma única sessão de caixa aberta por empresa; vendas, cancelamentos e
+  movimentações manuais exigem sessão aberta.
+- Saldo esperado e diferença calculados sempre no servidor; data sempre
+  do servidor (sem backdating).
+- Apenas dinheiro físico (`inCash`) compõe o saldo do caixa; demais
+  formas de pagamento entram no resumo financeiro.
+- Lançamentos nunca são editados/apagados: estorno cria lançamento
+  compensatório com auditoria (autor, data, motivo).
+
 ## [Etapa 3] — 2026-10-09
 
 ### Adicionado

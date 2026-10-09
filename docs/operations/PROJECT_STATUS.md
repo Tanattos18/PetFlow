@@ -2,39 +2,45 @@
 
 ## Etapa atual
 
-**Etapa 3 — Vendas e PDV** — CONCLUÍDA
+**Etapa 4 — Caixa e financeiro** — CONCLUÍDA
 (aguardando aprovação do proprietário para avançar).
 
 Data: 2026-10-09.
 
 Etapas anteriores: Etapa 0 (2026-10-09), Etapa 1 (2026-10-09),
-Etapa 2 (2026-10-09).
+Etapa 2 (2026-10-09), Etapa 3 (2026-10-09).
 
-## Entregas concluídas (Etapa 3)
+## Entregas concluídas (Etapa 4)
 
-- [x] Migration `20261009205135_etapa3_sales_pdv` aplicada em `petflow`
+- [x] Migration `20261009212628_etapa4_cash_finance` aplicada em `petflow`
       (dev) e `petflow_test` (testes); schema validado.
-- [x] Modelos: `Sale` (código de comprovante único por empresa,
-      `clientRequestId` idempotente, status, subtotal/desconto/total em
-      `Decimal(12,2)`, forma de pagamento, cancelamento com autor/motivo/
-      data) e `SaleItem` (snapshot imutável de nome, SKU, unidade, preço e
-      quantidade); enums `PaymentMethod` (CASH, CARD, PIX, OTHER) e
-      `SaleStatus` (COMPLETED, CANCELLED).
-- [x] API: `POST /sales` (recalcula preços/totais do banco em transação
-      única com venda + itens + baixa de estoque + movimentos OUT),
-      `GET /sales` (histórico paginado com filtros status/código/período),
-      `GET /sales/:id` (detalhe), `POST /sales/:id/cancel` (ADMIN, motivo
-      obrigatório, devolve estoque com movimentos IN compensatórios,
-      blindado contra duplo cancelamento) — ver `docs/architecture/API.md`.
-- [x] Prevenção de venda duplicada: `clientRequestId` único por empresa →
-      reenvio/duplo clique respondem 409 sem alterar estoque.
-- [x] Permissões: criação/consulta liberadas a usuários autenticados;
-      cancelamento restrito a `ADMIN`; empresa sempre da sessão.
-- [x] Frontend: `/pdv` (busca por nome/SKU/barcode, carrinho, quantidades,
-      desconto, formas de pagamento, finalização com confirmação e
-      comprovante imprimível), `/vendas` (histórico com filtros),
-      `/vendas/[id]` (detalhe, comprovante, cancelamento com motivo);
-      home exibe "Vendas e PDV" como módulo disponível.
+- [x] Modelos: `CashSession` (sessão única aberta por empresa, valores de
+      abertura/fechamento em `Decimal(12,2)`, auditoria de quem abriu/
+      fechou) e `CashMovement` (ledger imutável com `type`, `origin`,
+      `inCash`, justificativa, vínculo com venda e auto-relação de
+      estorno, único `(origin, saleId)`); `Sale.cashSessionId` (FK
+      `SetNull`); enums `CashSessionStatus`, `CashMovementType`,
+      `CashMovementOrigin`.
+- [x] API módulo `cash` (prefixo `/api`): abrir/consultar/fechar
+      sessões (`GET /sessions/current` responde 404 sem sessão),
+      movimentações manuais (`POST /movements`, `OUT` exige
+      justificativa) e histórico com filtros, estorno auditável
+      (`POST /movements/:id/reversal`) e resumo financeiro
+      (`GET /summary`) — escrita restrita a ADMIN, leitura autenticada.
+- [x] Integração com vendas: `POST /sales` e `POST /sales/:id/cancel`
+      exigem caixa aberto (409) e gravam `cashSessionId` + lançamento
+      único (`SALE`/`SALE_CANCELMENT`) na mesma transação; `inCash` =
+      venda/cancelamento em dinheiro.
+- [x] Regras: saldo esperado e diferença calculados no servidor no
+      fechamento; abertura serializada por lock na `Company` (duplicidade
+      → 409); estorno apenas de `MANUAL` não estornado na sessão aberta
+      (duplo → 409; venda → 400); ordem de locks sessão → produtos.
+- [x] Frontend: `/caixa` (situação, abertura, form entrada/saída e
+      movimentações recentes), `/caixa/fechar` (esperado vs. contado com
+      diferença), `/caixa/movimentos` (filtros + estorno), `/caixa/sessoes`
+      (histórico), `/financeiro` (resumo por período); banner "Caixa
+      fechado" com bloqueio de finalização no `/pdv`; home exibe "Caixa e
+      financeiro" como módulo disponível; badge "Etapa 4".
 
 ## Testes executados
 
@@ -43,21 +49,22 @@ Etapa 2 (2026-10-09).
 | Schema Prisma válido | `npm run db:validate` | OK |
 | Lint | `npm run lint` | OK (0 erros) |
 | Typecheck | `npm run typecheck` | OK (4 workspaces) |
-| Testes (PostgreSQL real) | `npm test` | 104/104 aprovados (7 arquivos) |
+| Testes (PostgreSQL real) | `npm test` | 141/141 aprovados (8 arquivos) |
 | Build | `npm run build` | OK (shared, api, web, worker) |
-| E2E API | fluxo login→venda→estoque→cancelamento | 25/25 verificações OK |
-| E2E web | `GET /pdv`, `/vendas`, `/vendas/[id]` | 200 |
+| E2E API + web | script `e2e-etapa4.ps1` | 30/30 verificações OK |
 
-Cobertura dos testes novos (28): venda válida (1 e vários produtos),
-produto inexistente/inativo/de outra empresa (404/400), quantidade
-zero/negativa, estoque insuficiente sem efeitos, desconto negativo ou
-acima do subtotal, adulteração de preços/totais pelo cliente ignorada,
-reenvio com `clientRequestId` (409), vendas concorrentes (5 de 3 sobre
-saldo 5 → 1 aprovada, saldo final 2, estoque nunca negativo), snapshot de
-nome/SKU/preço preservado após renomeação, histórico com filtros
-(status/código/período) e paginação, cancelamento (permissão 403, motivo
-400, devolução única de estoque, recancelamento 409) e isolamento
-multiempresa (detalhe/cancelamento de outra empresa → 404).
+Cobertura dos testes novos (37): abertura (duplicidade 409, permissão
+403, saldo inicial), movimentações manuais (validações de valor/
+justificativa, permissão), integração com vendas (lançamento `SALE` com
+`inCash` verdadeiro para dinheiro e falso para Pix, cancelamento com
+lançamento único mesmo em recancelamento 409), estorno (403 membro, motivo
+curto 400, criação do compensatório + marcação do original, duplo 409,
+lançamento de venda 400), resumo financeiro (totais por período,
+filtro por sessão, período vazio com zeros, leitura por membro),
+fechamento (esperado/diferença server-side, duplo 409, bloqueio de
+venda/movimentação/estorno pós-fechamento, 4 aberturas concorrentes →
+exatamente 1 sucesso) e isolamento multiempresa (sessão/histórico/
+resumo/estorno de outra empresa → 404/zero/vazio).
 
 ## Pendências conhecidas
 
@@ -68,6 +75,8 @@ multiempresa (detalhe/cancelamento de outra empresa → 404).
   futura de venda com saldo insuficiente (backorder), será decisão explícita.
 - Formas de pagamento configuráveis além de Dinheiro/Cartão/Pix/Outro
   (hoje "Outro" aceita descrição livre).
+- Vendas anteriores à Etapa 4 (sem `cashSessionId`/lançamento) ficam fora
+  do financeiro — limitação de dados de desenvolvimento.
 - Integração da pasta `automação do whatsapp/` em etapa própria.
 
 ## Git
@@ -77,10 +86,12 @@ multiempresa (detalhe/cancelamento de outra empresa → 404).
 - `6a36407` feat(etapa-2): implementa produtos e controle de estoque
 - `e305d52` docs: registra hashes dos commits e push da etapa 2
 - `912d1c8` feat(etapa-3): implementa vendas e ponto de venda
-- Push confirmado: `e305d52..912d1c8 main -> main` (árvore de trabalho
-  limpa, em sincronia com `origin/main`).
+- `<hash-etapa-4>` feat(etapa-4): implementa caixa e financeiro
+  (será registrado após o commit/push da Etapa 4).
+- Push confirmado até `912d1c8` (árvore de trabalho em sincronia com
+  `origin/main` antes da Etapa 4).
 
 ## Próxima etapa autorizada
 
-**Etapa 4 — Caixa e financeiro** — a iniciar somente após aprovação
-explícita do proprietário.
+**Etapa 5 — a definir** — a iniciar somente após aprovação explícita do
+proprietário.

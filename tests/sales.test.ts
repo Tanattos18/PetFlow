@@ -136,6 +136,15 @@ beforeAll(async () => {
   adminACookie = await login("admin@vendas-a.test");
   memberACookie = await login("membro@vendas-a.test");
   adminBCookie = await login("admin@vendas-b.test");
+
+  // Vendas exigem caixa aberto desde a Etapa 4.
+  const openCash = await request(app.getHttpServer())
+    .post("/api/cash/sessions")
+    .set("Cookie", adminACookie)
+    .send({ initialAmount: "100.00" });
+  if (openCash.status !== 201) {
+    throw new Error(`Abertura de caixa falhou: ${openCash.status}`);
+  }
 });
 
 afterAll(async () => {

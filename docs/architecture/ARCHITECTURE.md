@@ -142,3 +142,39 @@ tests/        → testes compartilhados/integração
 - **Comprovante imprimível**: HTML mínimo gerado em nova janela
   (`window.open` + `window.print`), independente de CSS da aplicação;
   pop-up bloqueado → aviso ao usuário.
+
+## Módulo caixa e financeiro (Etapa 4)
+
+- **Uma sessão de caixa aberta por empresa**: abertura serializada com
+  `SELECT ... FOR UPDATE` na linha da `Company` (409 se já houver
+  `OPEN`); fechamento e estorno lockam a própria sessão. Alternativa
+  descartada (várias sessões simultâneas) complicaria a conciliação de
+  turno sem benefício operacional.
+- **Venda/cancelamento exigem caixa aberto** (`409`): mantém o ledger
+  financeiro completo e consistente com o estoque — toda venda pertence a
+  uma sessão (`Sale.cashSessionId`) e gera exatamente um lançamento
+  (`@@unique([origin, saleId])` como defesa extra além da transação).
+- **Saldo do caixa = dinheiro físico**: `inCash` marca o que compõe o
+  saldo esperado (vendas `CASH` + manuais); CARD/PIX/OTHER geram
+  lançamento com `inCash = false` e entram apenas no resumo financeiro
+  (que agrega por origem/tipo). Assim "saldo esperado" bate com a
+  contagem de cédulas sem misturar recebimentos eletrônicos.
+- **Saldo/diferença sempre no servidor**: `expected` e `difference` são
+  calculados no fechamento (agregações `inCash` na sessão) e nunca
+  aceitos do cliente; data/hora sempre do servidor (sem backdating).
+- **Estorno auditável, nunca edição**: apenas lançamentos `MANUAL` na
+  sessão aberta; cria `REVERSAL` do tipo oposto e marca o original com
+  `reversedAt`/autor/motivo via `updateMany` condicional (corrida → 409).
+  Vendas são revertidas pelo cancelamento (fluxo próprio com devolução de
+  estoque), não por estorno.
+- **Ordem de locks fixa**: sessão de caixa → produtos ordenados por `id`
+  (mesma ordem no cancelamento) — evita deadlock entre venda e
+  movimentações.
+- **Permissões**: leitura (situação, movimentos, resumo, sessões) para
+  qualquer usuário autenticado; escrita (abrir/fechar/movimentar/
+  estornar) restrita a `ADMIN`.
+- **Frontend**: `/caixa` (situação, abertura e movimentações recentes),
+  `/caixa/fechar`, `/caixa/movimentos` (filtros + estorno),
+  `/caixa/sessoes` (histórico) e `/financeiro` (resumo por período);
+  `/pdv` exibe banner "Caixa fechado" e bloqueia a finalização enquanto
+  `GET /cash/sessions/current` retornar 404.

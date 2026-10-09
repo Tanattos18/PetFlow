@@ -9,6 +9,7 @@ import { fetchSession, type Session } from "../../lib/session";
 import {
   paymentMethodLabels,
   productUnitLabels,
+  type CashSessionDto,
   type Paginated,
   type PaymentMethod,
   type ProductDto,
@@ -37,6 +38,7 @@ export default function PdvPage() {
 
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [cashOpen, setCashOpen] = useState<boolean | null>(null);
 
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<ProductDto[]>([]);
@@ -63,6 +65,13 @@ export default function PdvPage() {
       setLoading(false);
     });
   }, [router]);
+
+  useEffect(() => {
+    if (!session) return;
+    api<CashSessionDto>("/api/cash/sessions/current", { redirectOnUnauthorized: false })
+      .then(() => setCashOpen(true))
+      .catch((err) => setCashOpen(err instanceof ApiError && err.status === 404 ? false : true));
+  }, [session]);
 
   const searchProducts = useCallback(async (term: string) => {
     if (!term.trim()) {
@@ -203,7 +212,10 @@ export default function PdvPage() {
       setPaymentNote("");
       clientRequestId.current = newRequest();
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
+      if (err instanceof ApiError && err.message.includes("Caixa fechado")) {
+        setCashOpen(false);
+        setError("O caixa está fechado. Abra o caixa para registrar vendas.");
+      } else if (err instanceof ApiError && err.status === 409) {
         setError("Esta venda já foi registrada (reenvio detectado). Consulte o histórico de vendas.");
       } else {
         setError(err instanceof ApiError ? err.message : "Falha ao finalizar a venda.");
@@ -295,6 +307,21 @@ export default function PdvPage() {
       {error && (
         <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {cashOpen === false && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span>
+            <strong>Caixa fechado.</strong> Vendas e cancelamentos só podem ser registrados com o
+            caixa aberto.
+          </span>
+          <Link
+            href="/caixa"
+            className="rounded-md bg-teal-700 px-3 py-1.5 font-medium text-white hover:bg-teal-800"
+          >
+            Abrir caixa
+          </Link>
         </div>
       )}
 
@@ -466,10 +493,10 @@ export default function PdvPage() {
 
           <button
             type="submit"
-            disabled={saving || cart.length === 0}
+            disabled={saving || cart.length === 0 || cashOpen === false}
             className="w-full rounded-md bg-teal-700 px-4 py-3 text-sm font-semibold text-white hover:bg-teal-800 disabled:opacity-60"
           >
-            {saving ? "Finalizando..." : "Finalizar venda"}
+            {saving ? "Finalizando..." : cashOpen === false ? "Caixa fechado" : "Finalizar venda"}
           </button>
         </div>
       </form>

@@ -131,6 +131,40 @@ Payload de criação:
 Busca de produtos no PDV reaproveita `GET /api/products?search=&status=ACTIVE`
 (nome, SKU ou código de barras).
 
+## Caixa e financeiro (Etapa 4)
+
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| POST | `/api/cash/sessions` | ADMIN | Abre a sessão (uma aberta por empresa; segunda → 409) |
+| GET | `/api/cash/sessions/current` | sessão | Sessão `OPEN` com totais + `expectedBalance`; sem sessão → **404** |
+| GET | `/api/cash/sessions` | sessão | Últimas 50 sessões com totais e `expectedBalance` |
+| GET | `/api/cash/sessions/:id/summary` | sessão | Resumo da sessão (diferença quando fechada); outra empresa → 404 |
+| POST | `/api/cash/sessions/:id/close` | ADMIN | Fecha com `countedAmount`; `expected`/`difference` calculados no servidor; já fechada → 409 |
+| POST | `/api/cash/movements` | ADMIN | Movimentação manual (`type`, `amount`, `description`; `OUT` exige `justification`) com sessão aberta |
+| GET | `/api/cash/movements` | sessão | Histórico paginado; filtros `from`/`to`, `sessionId`, `type`, `origin` |
+| POST | `/api/cash/movements/:id/reversal` | ADMIN | Estorno auditável (`reason` ≥ 3) de lançamento `MANUAL` não estornado na sessão aberta |
+| GET | `/api/cash/summary` | sessão | Resumo financeiro por período/sessão (vendas, manuais, cancelamentos, estornos, `net`) |
+
+Payload de abertura: `{ "initialAmount": "150.00", "notes": "..." }`.
+Payload de fechamento: `{ "countedAmount": "265.50", "notes": "..." }` —
+resposta inclui `expectedBalance` e `differenceBalance` (nunca vêm do
+cliente).
+
+Comportamentos importantes:
+
+- **Vendas e cancelamentos exigem caixa aberto**: `POST /api/sales` e
+  `POST /api/sales/:id/cancel` respondem **409** (`"Caixa fechado: abra o
+  caixa para ..."`) quando não há sessão `OPEN`; na criação/cancelamento a
+  venda grava `cashSessionId` e um lançamento `CashMovement` (`origin`
+  `SALE`/`SALE_CANCELMENT`, `inCash` conforme `paymentMethod === "CASH"`).
+- `GET /api/cash/sessions/current` responde **404** quando não há sessão
+  aberta (frontend trata 404 como "caixa fechado").
+- Escrita restrita a `ADMIN` (abrir, fechar, movimentar, estornar);
+  leitura liberada a qualquer sessão autenticada.
+- Estorno de lançamento `SALE`/`SALE_CANCELMENT` → 400 (usar cancelamento
+  da venda); lançamento já estornado → 409; sessão fechada → 409;
+  lançamento de outra empresa → 404.
+
 ## Padrão para módulos futuros
 
 1. Modelo sempre com `companyId` + FK `Restrict` e índices por empresa.

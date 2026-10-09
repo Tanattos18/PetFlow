@@ -19,7 +19,12 @@ const plannedModules = [
     href: "/pdv",
     available: true,
   },
-  { name: "Caixa e financeiro", description: "Movimentações e conciliação" },
+  {
+    name: "Caixa e financeiro",
+    description: "Sessões de caixa, movimentações e conciliação",
+    href: "/caixa",
+    available: true,
+  },
   { name: "Clientes e animais", description: "Cadastro de tutores e pets" },
   { name: "Serviços e agendamentos", description: "Banho, tosa e agenda" },
   { name: "Automação WhatsApp", description: "Mensagens e atendimento automatizado" },
@@ -86,6 +91,12 @@ export default function HomePage() {
               className="rounded-md border border-teal-700 px-3 py-2 text-sm font-medium text-teal-800 hover:bg-teal-100"
             >
               Vendas
+            </Link>
+            <Link
+              href="/caixa"
+              className="rounded-md border border-teal-700 px-3 py-2 text-sm font-medium text-teal-800 hover:bg-teal-100"
+            >
+              Caixa e financeiro
             </Link>
             <Link
               href="/produtos"

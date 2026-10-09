@@ -154,3 +154,95 @@ export interface SaleDto {
   cancelledBy: { id: string; name: string } | null;
   items: SaleItemDto[];
 }
+
+export type CashSessionStatus = "OPEN" | "CLOSED";
+
+export const cashSessionStatusLabels: Record<CashSessionStatus, string> = {
+  OPEN: "Aberto",
+  CLOSED: "Fechado",
+};
+
+export type CashMovementType = "IN" | "OUT";
+
+export const cashMovementTypeLabels: Record<CashMovementType, string> = {
+  IN: "Entrada",
+  OUT: "Saída",
+};
+
+export type CashMovementOrigin =
+  | "MANUAL"
+  | "SALE"
+  | "SALE_CANCELMENT"
+  | "REVERSAL";
+
+export const cashMovementOriginLabels: Record<CashMovementOrigin, string> = {
+  MANUAL: "Manual",
+  SALE: "Venda",
+  SALE_CANCELMENT: "Cancelamento",
+  REVERSAL: "Estorno",
+};
+
+export interface CashSessionTotals {
+  entriesTotal: string;
+  exitsTotal: string;
+  salesTotal: string;
+  cancelmentsTotal: string;
+}
+
+export interface CashSessionDto extends CashSessionTotals {
+  id: string;
+  status: CashSessionStatus;
+  initialAmount: string;
+  openingNotes: string | null;
+  openedAt: string;
+  openedBy: { id: string; name: string };
+  closedAt: string | null;
+  closedBy: { id: string; name: string } | null;
+  closingNotes: string | null;
+  countedAmount: string | null;
+  expectedAmount: string | null;
+  difference: string | null;
+  expectedBalance: string;
+  differenceBalance?: string | null;
+}
+
+export interface CashMovementDto {
+  id: string;
+  type: CashMovementType;
+  origin: CashMovementOrigin;
+  inCash: boolean;
+  amount: string;
+  description: string;
+  justification: string | null;
+  saleId: string | null;
+  sale: { id: string; receiptCode: string } | null;
+  reversalOfId: string | null;
+  reversalOf: {
+    id: string;
+    description: string;
+    amount: string;
+    type: CashMovementType;
+  } | null;
+  reversedAt: string | null;
+  reversedBy: { id: string; name: string } | null;
+  reversalReason: string | null;
+  cashSessionId: string | null;
+  createdAt: string;
+  createdBy: { id: string; name: string };
+}
+
+export interface CashSummaryDto {
+  from: string | null;
+  to: string | null;
+  sessionId: string | null;
+  salesTotal: string;
+  manualEntriesTotal: string;
+  manualExitsTotal: string;
+  cancelmentsTotal: string;
+  reversalsInTotal: string;
+  reversalsOutTotal: string;
+  reversalsNetTotal: string;
+  totalIn: string;
+  totalOut: string;
+  net: string;
+}

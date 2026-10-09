@@ -316,3 +316,102 @@ export const listSalesQuerySchema = paginationQuerySchema.extend({
   to: dateField.optional(),
 });
 export type ListSalesQuery = z.infer<typeof listSalesQuerySchema>;
+
+// ---------------------------------------------------------------------------
+// Etapa 4 — caixa e financeiro
+// ---------------------------------------------------------------------------
+
+export const cashSessionStatusSchema = z.enum(["OPEN", "CLOSED"]);
+export type CashSessionStatus = z.infer<typeof cashSessionStatusSchema>;
+
+export const cashMovementTypeSchema = z.enum(["IN", "OUT"]);
+export type CashMovementType = z.infer<typeof cashMovementTypeSchema>;
+
+export const cashMovementOriginSchema = z.enum([
+  "MANUAL",
+  "SALE",
+  "SALE_CANCELMENT",
+  "REVERSAL",
+]);
+export type CashMovementOrigin = z.infer<typeof cashMovementOriginSchema>;
+
+export const cashSessionStatusLabels: Record<CashSessionStatus, string> = {
+  OPEN: "Aberto",
+  CLOSED: "Fechado",
+};
+
+export const cashMovementTypeLabels: Record<CashMovementType, string> = {
+  IN: "Entrada",
+  OUT: "Saída",
+};
+
+export const cashMovementOriginLabels: Record<CashMovementOrigin, string> = {
+  MANUAL: "Manual",
+  SALE: "Venda",
+  SALE_CANCELMENT: "Cancelamento",
+  REVERSAL: "Estorno",
+};
+
+export const positivePriceFieldSchema = priceFieldSchema.refine(
+  (value) => Number(value) > 0,
+  "Valor deve ser maior que zero",
+);
+
+export const openCashSessionSchema = z.object({
+  initialAmount: priceFieldSchema,
+  notes: optionalText(500),
+});
+export type OpenCashSessionInput = z.infer<typeof openCashSessionSchema>;
+
+export const closeCashSessionSchema = z.object({
+  countedAmount: priceFieldSchema,
+  notes: optionalText(500),
+});
+export type CloseCashSessionInput = z.infer<typeof closeCashSessionSchema>;
+
+export const createCashMovementSchema = z
+  .object({
+    type: cashMovementTypeSchema,
+    amount: positivePriceFieldSchema,
+    description: z
+      .string()
+      .trim()
+      .min(2, "Descrição deve ter ao menos 2 caracteres")
+      .max(300, "Descrição deve ter no máximo 300 caracteres"),
+    justification: optionalText(500),
+  })
+  .superRefine((value, ctx) => {
+    if (value.type === "OUT" && !value.justification) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["justification"],
+        message: "Justificativa é obrigatória para saídas",
+      });
+    }
+  });
+export type CreateCashMovementInput = z.infer<typeof createCashMovementSchema>;
+
+export const reversalCashMovementSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Motivo é obrigatório para estorno")
+    .max(500, "Motivo deve ter no máximo 500 caracteres"),
+});
+export type ReversalCashMovementInput = z.infer<typeof reversalCashMovementSchema>;
+
+export const listCashMovementsQuerySchema = paginationQuerySchema.extend({
+  from: dateField.optional(),
+  to: dateField.optional(),
+  sessionId: z.string().trim().max(60).optional(),
+  type: cashMovementTypeSchema.optional(),
+  origin: cashMovementOriginSchema.optional(),
+});
+export type ListCashMovementsQuery = z.infer<typeof listCashMovementsQuerySchema>;
+
+export const cashSummaryQuerySchema = z.object({
+  from: dateField.optional(),
+  to: dateField.optional(),
+  sessionId: z.string().trim().max(60).optional(),
+});
+export type CashSummaryQuery = z.infer<typeof cashSummaryQuerySchema>;

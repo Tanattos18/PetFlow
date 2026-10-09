@@ -14,6 +14,7 @@ import type {
   ListSalesQuery,
 } from "@petflow/shared";
 import type { AuthContext } from "../common/decorators/auth.decorator";
+import { lockOpenCashSession } from "../cash/cash-session.helpers";
 
 const saleSelect = {
   id: true,
@@ -96,6 +97,13 @@ export class SalesService {
 
     try {
       return await this.prisma.$transaction(async (tx) => {
+        // Ordem de lock: sessão de caixa → produtos ordenados (sem deadlock).
+        const cashSession = await lockOpenCashSession(
+          tx,
+          auth.companyId,
+          "registrar vendas",
+        );
+
         const products = new Map<string, LockedProduct>();
 
         for (const productId of sortedProductIds) {
@@ -160,6 +168,7 @@ export class SalesService {
             paymentMethod: input.paymentMethod,
             paymentNote: input.paymentNote ?? null,
             createdByUserId: auth.userId,
+            cashSessionId: cashSession.id,
             items: {
               create: lines.map((line) => ({
                 productId: line.product.id,
@@ -192,6 +201,22 @@ export class SalesService {
             },
           });
         }
+
+        // Lançamento financeiro único da venda (unicidade garantida pelo
+        // unique (origin, saleId) além da transação atômica).
+        await tx.cashMovement.create({
+          data: {
+            companyId: auth.companyId,
+            cashSessionId: cashSession.id,
+            type: "IN",
+            origin: "SALE",
+            inCash: input.paymentMethod === "CASH",
+            amount: total,
+            description: `Venda ${receiptCode}`,
+            saleId: sale.id,
+            createdByUserId: auth.userId,
+          },
+        });
 
         return formatSale(sale);
       });
@@ -269,6 +294,8 @@ export class SalesService {
           id: true,
           receiptCode: true,
           status: true,
+          total: true,
+          paymentMethod: true,
           items: { select: { productId: true, quantity: true } },
         },
       });
@@ -279,6 +306,12 @@ export class SalesService {
       if (sale.status === "CANCELLED") {
         throw new ConflictException("Venda já cancelada");
       }
+
+      const cashSession = await lockOpenCashSession(
+        tx,
+        auth.companyId,
+        "cancelar vendas",
+      );
 
       const sortedProductIds = [...new Set(sale.items.map((item) => item.productId))].sort();
 
@@ -320,6 +353,21 @@ export class SalesService {
           },
         });
       }
+
+      // Reversão financeira única do cancelamento na sessão aberta atual.
+      await tx.cashMovement.create({
+        data: {
+          companyId: auth.companyId,
+          cashSessionId: cashSession.id,
+          type: "OUT",
+          origin: "SALE_CANCELMENT",
+          inCash: sale.paymentMethod === "CASH",
+          amount: sale.total,
+          description: `Cancelamento da venda ${sale.receiptCode}`,
+          saleId: sale.id,
+          createdByUserId: auth.userId,
+        },
+      });
 
       const cancelled = await tx.sale.findFirstOrThrow({
         where: { id: sale.id },

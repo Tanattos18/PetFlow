@@ -1,5 +1,48 @@
 # Banco de dados — diretrizes e modelo atual
 
+## Modelos implementados (Etapa 4)
+
+Migration: `database/prisma/migrations/20261009212628_etapa4_cash_finance`.
+
+| Modelo | Campos principais | Restrições/índices |
+|---|---|---|
+| `CashSession` | `companyId` (FK `Restrict`), `status` (enum `CashSessionStatus`), `initialAmount` `Decimal(12,2)`, `openingNotes?`, `openedByUserId` (FK `Restrict`), `openedAt`, `closedAt?`, `closedByUserId?` (FK `SetNull`), `closingNotes?`, `countedAmount?`, `expectedAmount?`, `difference?` (`Decimal(12,2)`), `movements`, `sales` | índices `(companyId, status)` e `(companyId, openedAt)`; sem `updatedAt` — a sessão muda apenas na abertura/fechamento |
+| `CashMovement` | `companyId` (FK `Restrict`), `cashSessionId` (FK `Restrict`), `type` (enum `CashMovementType`), `origin` (enum `CashMovementOrigin`), `inCash` `Boolean` (default `true`), `amount` `Decimal(12,2)`, `description`, `justification?`, `saleId?` (FK `Restrict`), `reversalOfId?` (auto-relação FK `Restrict`), `reversals`, `reversedAt?`, `reversedByUserId?` (FK `SetNull`), `reversalReason?`, `createdByUserId` (FK `Restrict`), `createdAt` | único `(origin, saleId)` (venda/cancelamento nunca duplicam lançamento; NULLs não conflitam); índices `(companyId, createdAt)`, `(companyId, cashSessionId)`, `(companyId, saleId)`; sem `updatedAt` — ledger imutável |
+
+Enums novos:
+
+- `CashSessionStatus`: `OPEN`, `CLOSED`.
+- `CashMovementType`: `IN`, `OUT`.
+- `CashMovementOrigin`: `MANUAL`, `SALE`, `SALE_CANCELMENT`, `REVERSAL`.
+
+Alteração em modelo existente:
+
+- `Sale.cashSessionId` (`String?`, FK → `CashSession`, `SetNull`): vincula a
+  venda à sessão de caixa aberta no momento da venda; vendas anteriores à
+  Etapa 4 ficam sem sessão/lançamento (dados de desenvolvimento).
+
+Regras derivadas:
+
+- **Uma única sessão `OPEN` por empresa**; serialização de abertura via
+  `SELECT ... FOR UPDATE` na linha da `Company`.
+- Saldos de caixa (`expectedAmount`, `difference`) calculados **somente no
+  servidor** no fechamento: `inicial + Σ(IN inCash) − Σ(OUT inCash)`; a
+  diferença é `contado − esperado`.
+- `inCash` decide o que compõe o saldo físico: apenas venda com
+  `paymentMethod = CASH` (e cancelamentos/estornos correspondentes) entra
+  em entradas/saídas do caixa; CARD/PIX/OTHER geram lançamento com
+  `inCash = false` (entram no resumo financeiro por origem/tipo).
+- Venda e cancelamento criam **um único** lançamento (`origin = SALE` /
+  `SALE_CANCELMENT`) na mesma transação, garantido também por
+  `@@unique([origin, saleId])`.
+- Estorno: apenas lançamentos `MANUAL` ainda não estornados; cria
+  movimento compensatório (`origin = REVERSAL`, tipo oposto, mesma
+  sessão) e marca o original (`reversedAt` via `updateMany` condicional —
+  dupla corrida → 409); histórico nunca é apagado.
+- Vendas/cancelamentos movimentações manuais exigem sessão `OPEN`
+  (`SELECT ... FOR UPDATE` na sessão — lock de sessão **antes** dos
+  produtos, ordem fixa, evita deadlock).
+
 ## Modelos implementados (Etapa 3)
 
 Migration: `database/prisma/migrations/20261009205135_etapa3_sales_pdv`.

@@ -105,6 +105,20 @@ Etapa 1; os demais endpoints ficam em `/api/...`.
 - Testes de vendas (transações, concorrência, cancelamento) rodam no
   `petflow_test` via `npm test`; a migration é aplicada no setup.
 
+## Caixa e financeiro (Etapa 4)
+
+- Endpoints, payloads e permissões: `docs/architecture/API.md`.
+- Vendas, cancelamentos e movimentações manuais exigem sessão de caixa
+  aberta (409) — no frontend o `/pdv` verifica
+  `GET /api/cash/sessions/current` (404 = caixa fechado) e exibe banner
+  com link para `/caixa`.
+- Saldo esperado/diferença e resumo financeiro são calculados no
+  servidor; `inCash` separa dinheiro físico (saldo do caixa) das demais
+  formas de pagamento (resumo financeiro).
+- Testes do caixa (`tests/cash.test.ts`) rodam no `petflow_test` via
+  `npm test`; a migration é aplicada no setup. `tests/sales.test.ts`
+  abre uma sessão de caixa no `beforeAll`.
+
 ## Estrutura rápida
 
 Ver `docs/architecture/ARCHITECTURE.md` e o `README.md` na raiz.

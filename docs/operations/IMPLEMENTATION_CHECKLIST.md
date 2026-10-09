@@ -115,12 +115,56 @@ Escopo definido em `Etapas_projeto/PetFlow_Prompt_OpenCode_Etapa_2.md`.
       DEVELOPMENT, ARCHITECTURE)
 - [x] Commit e push (ver relatório final / PROJECT_STATUS)
 
+## Etapa 4 — Caixa e financeiro (2026-10-09)
+
+- [x] Etapa 3 confirmada funcional (104/104 testes antes de iniciar;
+      auditoria de lint/typecheck/build/db:validate sem problemas)
+- [x] Schema: `CashSession`, `CashMovement`; enums `CashSessionStatus`,
+      `CashMovementType`, `CashMovementOrigin`; `Sale.cashSessionId`;
+      migration `20261009212628_etapa4_cash_finance` aplicada em `petflow`
+      e `petflow_test`; `npm run db:validate` OK
+- [x] `POST /api/cash/sessions` (ADMIN, uma aberta por empresa com lock
+      na `Company` → 409 em duplicidade) e `GET /sessions/current`
+      (404 sem sessão aberta)
+- [x] Movimentações manuais (ADMIN, sessão aberta; `OUT` exige
+      justificativa; valores positivos validados no Zod) e histórico com
+      filtros (período, sessão, tipo, origem) + paginação
+- [x] `POST /sessions/:id/close` (ADMIN): saldo esperado e diferença
+      calculados no servidor (apenas `inCash`); duplo fechamento → 409
+- [x] Estorno auditável (`POST /movements/:id/reversal`): apenas
+      `MANUAL` não estornado na sessão aberta; cria `REVERSAL`
+      compensatório e marca o original (`updateMany` condicional → dupla
+      corrida 409); venda → 400; sessão fechada → 409
+- [x] `GET /api/cash/summary`: totais por origem/tipo/período/sessão
+      calculados no servidor (vendas, manuais, cancelamentos, estornos,
+      entradas, saídas, líquido)
+- [x] Integração com vendas: `POST /sales` e `/sales/:id/cancel` exigem
+      caixa aberto (409) e gravam `cashSessionId` + lançamento único
+      (`SALE`/`SALE_CANCELMENT`) na mesma transação; `inCash` conforme
+      `paymentMethod === "CASH"`; lock de sessão antes dos produtos
+- [x] Frontend: `/caixa` (situação, abertura, form entrada/saída,
+      movimentações recentes), `/caixa/fechar`, `/caixa/movimentos`
+      (filtros + estorno), `/caixa/sessoes`, `/financeiro`; banner e
+      bloqueio de venda no `/pdv` com caixa fechado; home módulo
+      disponível; badge "Etapa 4"
+- [x] Testes: 141/141 aprovados em PostgreSQL real (37 novos em
+      `cash.test.ts`; `sales.test.ts` abrindo caixa no `beforeAll`)
+- [x] `npm run lint`, `npm run typecheck`, `npm run build`,
+      `npm run db:validate` OK
+- [x] Validação E2E manual: 30/30 verificações (venda com caixa fechado
+      409, abertura, `inCash` dinheiro/Pix, saída sem justificativa 400,
+      cancelamento único, duplo estorno 409, resumo, fechamento com
+      diferença −2.50, duplo fechamento 409, reabertura, páginas 200)
+- [x] Documentação atualizada (CHANGELOG, STATUS, DATABASE, API,
+      ARCHITECTURE, DEVELOPMENT)
+- [x] Commit e push (ver relatório final / PROJECT_STATUS)
+
 ## Etapas futuras — módulos de negócio
 
 - [ ] Cadastro de clientes e animais
 - [x] Produtos e estoque (Etapa 2)
 - [x] Vendas e PDV (Etapa 3)
-- [ ] Caixa e financeiro
+- [x] Caixa e financeiro (Etapa 4)
 - [ ] Serviços e agendamentos
 - [ ] Automação WhatsApp
 - [ ] Dashboard e relatórios

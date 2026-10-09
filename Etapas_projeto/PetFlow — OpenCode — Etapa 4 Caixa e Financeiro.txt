@@ -1,0 +1,237 @@
+# PetFlow — OpenCode — Etapa 4: Caixa e Financeiro
+
+Você está trabalhando no **PetFlow**, um SaaS web multiempresa para pet shops.
+
+**Repositório oficial:** https://github.com/Tanattos18/PetFlow.git
+
+## 1. Objetivo
+
+Implementar o módulo de **Caixa e Financeiro**, integrado aos produtos, ao estoque e ao ponto de venda desenvolvidos nas etapas anteriores.
+
+O objetivo é permitir que o pet shop controle a abertura e o fechamento do caixa, registre entradas e saídas, acompanhe vendas e cancelamentos e consulte resumos financeiros por período.
+
+**Não inicie a Etapa 5 sem minha aprovação explícita.**
+
+## 2. Auditoria obrigatória antes de começar
+
+Antes de modificar qualquer arquivo:
+
+1. Leia `AGENTS.md`, `PROJECT_STATUS`, `IMPLEMENTATION_CHECKLIST`, `CHANGELOG` e a documentação de arquitetura, banco de dados e desenvolvimento.
+2. Inspecione a estrutura real do backend, frontend, banco de dados e pacotes compartilhados.
+3. Confira `git status`, branch atual, commits recentes e `git remote -v`.
+4. Verifique o que realmente foi concluído nas Etapas 1, 2 e 3.
+5. Execute os testes, lint, typecheck e build existentes, quando possível.
+
+Confirme especialmente a autenticação, o isolamento entre empresas, o estoque e o funcionamento das vendas.
+
+Se encontrar problemas críticos nas etapas anteriores, **pare e apresente o diagnóstico antes de implementar o financeiro**. Não presuma que uma funcionalidade existe apenas porque aparece na documentação.
+
+## 3. Funcionalidades do caixa
+
+### Abertura
+
+- Permitir abrir uma sessão de caixa informando o valor inicial para troco.
+- Registrar usuário responsável, empresa, data e hora da abertura.
+- Permitir observação opcional.
+- Impedir sessões simultâneas quando isso contrariar a regra de negócio definida.
+- Mostrar claramente se o caixa está aberto ou fechado.
+
+Defina se a sessão será única por empresa, por caixa físico ou por usuário, considerando a arquitetura existente. Documente a decisão.
+
+### Movimentações
+
+Permitir registrar:
+
+- Entradas manuais de dinheiro.
+- Saídas manuais de dinheiro.
+- Descrição e justificativa.
+- Categoria da movimentação.
+- Valor e data.
+- Usuário responsável.
+- Sessão de caixa relacionada, quando aplicável.
+
+Validações obrigatórias:
+
+- Não aceitar valores zero ou negativos.
+- Exigir justificativa para saídas.
+- Não permitir movimentações em sessões fechadas.
+- Não permitir alteração ou exclusão silenciosa de movimentações confirmadas.
+- Quando houver necessidade de correção, utilizar estorno auditável, com motivo e autorização.
+
+### Fechamento
+
+No fechamento, apresentar:
+
+- Saldo inicial.
+- Total de entradas.
+- Total de saídas.
+- Vendas registradas.
+- Cancelamentos e estornos.
+- Saldo esperado.
+- Valor contado pelo operador.
+- Diferença entre o valor esperado e o contado.
+- Responsável e horário do fechamento.
+
+Impedir fechamento duplicado e alterações indevidas depois do encerramento.
+
+O valor contado deve ser informado pelo operador. O sistema deve calcular o saldo esperado a partir das movimentações registradas.
+
+## 4. Integração com o ponto de venda
+
+Investigue primeiro como as vendas e os cancelamentos estão implementados na Etapa 3.
+
+- Ao concluir uma venda, registrar a respectiva entrada financeira uma única vez.
+- Respeitar a forma de pagamento informada na venda.
+- Ao cancelar uma venda, reverter o lançamento financeiro correspondente uma única vez.
+- Impedir lançamentos duplicados causados por repetição de requisições, retries ou eventos repetidos.
+- Manter o histórico da venda e de seus lançamentos financeiros.
+- Usar transações do banco para manter os registros consistentes.
+
+Não implemente integração com bancos, adquirentes ou maquininhas. Registrar uma forma de pagamento no PetFlow não significa que o pagamento foi confirmado por um provedor externo.
+
+Analise como o sistema deverá tratar vendas quando não houver caixa aberto. Defina uma regra coerente, implemente as validações e documente a decisão, sem assumir comportamentos silenciosamente.
+
+## 5. Resumo financeiro
+
+Criar uma consulta financeira por período com:
+
+- Total de vendas.
+- Total de entradas manuais.
+- Total de saídas manuais.
+- Total de cancelamentos e estornos.
+- Total líquido.
+- Filtro por data inicial e final.
+- Filtro por sessão de caixa, quando aplicável.
+
+Os totais devem ser calculados no backend a partir dos registros persistidos. Nunca confiar nos totais enviados pelo frontend.
+
+Não implementar nesta etapa contas a pagar, contas a receber, conciliação bancária, DRE completa, emissão fiscal, folha de pagamento ou integração bancária.
+
+## 6. Banco de dados
+
+Reutilize o Prisma, as migrations e os padrões de persistência existentes.
+
+Inspecione o schema atual e crie somente os modelos e campos necessários. Os nomes devem seguir as convenções reais do projeto; os conceitos podem incluir sessões de caixa e movimentações financeiras.
+
+Requisitos:
+
+- Valores monetários persistidos com `Decimal`, evitando `float` para dinheiro.
+- Associação com a empresa e o usuário responsável.
+- Registro da origem da movimentação: venda, cancelamento, entrada manual ou saída manual.
+- Referência à origem quando aplicável.
+- Datas, descrição, estado e histórico de auditoria.
+- Índices para consultas por empresa e período.
+- Restrições ou mecanismos de idempotência para impedir lançamentos duplicados.
+- Transações para operações que alterem múltiplos registros.
+
+Não execute comandos destrutivos nem altere dados de produção. Revise as migrations antes de aplicá-las no ambiente de desenvolvimento.
+
+## 7. Segurança e isolamento multiempresa
+
+- Obtenha a empresa a partir do usuário autenticado no servidor.
+- Nunca confie em `companyId`, saldo ou totais enviados pelo navegador.
+- Reutilize o mecanismo de autenticação e as permissões existentes.
+- Valide as permissões para abrir, fechar, movimentar e consultar o caixa.
+- Garanta que um usuário não consiga consultar ou alterar dados financeiros de outra empresa manipulando IDs ou parâmetros.
+- Valide as entradas no servidor utilizando os padrões já adotados no projeto.
+- Não exponha credenciais ou informações financeiras desnecessárias em logs.
+
+O isolamento multiempresa deve ser aplicado em todas as rotas e operações de banco de dados relevantes.
+
+## 8. API e frontend
+
+Adapte as rotas e os nomes à arquitetura real existente.
+
+Implemente as operações necessárias para:
+
+- Abrir o caixa.
+- Consultar a sessão aberta.
+- Listar sessões anteriores.
+- Registrar entradas e saídas.
+- Fechar o caixa.
+- Consultar o resumo de fechamento.
+- Consultar movimentações e filtrar por período.
+- Consultar o resumo financeiro.
+- Integrar vendas concluídas e canceladas aos lançamentos financeiros.
+
+No frontend, desenvolver telas responsivas, coerentes com o visual atual do PetFlow, com:
+
+- Situação do caixa.
+- Formulário de abertura.
+- Formulário de movimentação.
+- Tela de fechamento.
+- Histórico de movimentações.
+- Resumo financeiro por período.
+- Mensagens de validação, carregamento, sucesso e erro.
+
+Não reconstrua o frontend inteiro. Reutilize os componentes, a navegação e os padrões já existentes.
+
+## 9. Testes obrigatórios
+
+Crie ou atualize testes para verificar:
+
+1. Abertura e fechamento válidos.
+2. Impedimento de sessões simultâneas, conforme a regra definida.
+3. Entradas e saídas válidas.
+4. Rejeição de valores inválidos.
+5. Obrigatoriedade de justificativa para saídas.
+6. Impedimento de movimentações em caixa fechado.
+7. Cálculo correto do saldo e da diferença no fechamento.
+8. Integração de vendas e cancelamentos sem duplicação.
+9. Consistência das transações em caso de falha.
+10. Isolamento entre empresas.
+11. Permissões por usuário.
+12. Filtros de datas e cálculos do resumo financeiro.
+13. Proteção contra requisições repetidas e operações concorrentes, quando aplicável.
+
+Execute os testes, lint, typecheck e build. Informe os resultados reais. Não declare um teste aprovado sem executá-lo.
+
+Se algum teste não puder ser realizado por falta de PostgreSQL, variáveis de ambiente ou outro serviço, informe o bloqueio e execute tudo o que for possível.
+
+## 10. Documentação
+
+Atualize a documentação existente, incluindo:
+
+- `PROJECT_STATUS`.
+- `IMPLEMENTATION_CHECKLIST`.
+- `CHANGELOG`.
+- Documentação de arquitetura e banco de dados.
+- Guia de desenvolvimento e configuração local.
+- Documentação das rotas e regras de negócio do caixa.
+
+Registre as decisões sobre abertura de caixa, vendas sem caixa aberto, estornos, fechamento e permissões.
+
+## 11. GitHub — obrigatório
+
+Repositório: https://github.com/Tanattos18/PetFlow.git
+
+Ao finalizar:
+
+1. Confira novamente a branch, o estado do Git e o repositório remoto.
+2. Preserve alterações preexistentes e não relacionadas à Etapa 4.
+3. Execute testes, lint, typecheck e build.
+4. Revise `git diff` e `git diff --check`.
+5. Verifique se nenhum `.env` real, token, senha ou segredo será incluído.
+6. Adicione ao stage somente os arquivos relacionados à Etapa 4.
+7. Crie um commit com a mensagem:
+
+   `feat(etapa-4): implementa caixa e financeiro`
+
+8. Faça push para o repositório e a branch corretos, se a autenticação estiver disponível e o estado remoto estiver seguro.
+9. Se houver divergência, conflito ou risco de sobrescrever alterações, pare e informe o problema. Nunca use `git push --force`, `git reset --hard` ou `git clean -fd` para contornar conflitos.
+
+No relatório final, informe o hash do commit, a branch, o resultado do push e o estado final do Git. Não afirme que o push foi realizado se ele falhar.
+
+## 12. Relatório final e encerramento
+
+Ao terminar, apresente:
+
+- Funcionalidades implementadas.
+- Principais arquivos e migrations alterados.
+- Regras de negócio adotadas.
+- Testes executados e seus resultados.
+- Limitações e pendências.
+- Instruções para executar e validar localmente.
+- Hash do commit, branch, resultado do push e estado do repositório.
+
+**Finalize a Etapa 4, atualize a documentação, faça commit e push seguros e aguarde minha aprovação. Não comece a Etapa 5 automaticamente.**

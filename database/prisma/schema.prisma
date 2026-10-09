@@ -57,6 +57,23 @@ enum SaleStatus {
   CANCELLED
 }
 
+enum CashSessionStatus {
+  OPEN
+  CLOSED
+}
+
+enum CashMovementType {
+  IN
+  OUT
+}
+
+enum CashMovementOrigin {
+  MANUAL
+  SALE
+  SALE_CANCELMENT
+  REVERSAL
+}
+
 model Company {
   id        String        @id @default(cuid())
   name      String
@@ -70,6 +87,8 @@ model Company {
   products   Product[]
   stockMovements StockMovement[]
   sales      Sale[]
+  cashSessions   CashSession[]
+  cashMovements  CashMovement[]
 }
 
 model User {
@@ -87,6 +106,10 @@ model User {
   stockMovements StockMovement[]
   salesCreated   Sale[] @relation("SaleCreatedBy")
   salesCancelled Sale[] @relation("SaleCancelledBy")
+  cashSessionsOpened CashSession[] @relation("CashSessionOpenedBy")
+  cashSessionsClosed CashSession[] @relation("CashSessionClosedBy")
+  cashMovements  CashMovement[]
+  movementsReversed   CashMovement[] @relation("MovementReversedBy")
 
   @@unique([companyId, email])
   @@index([companyId, status])
@@ -207,8 +230,11 @@ model Sale {
   cancelledByUserId String?
   cancelledBy       User?            @relation("SaleCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: SetNull)
   cancelReason      String?
+  cashSessionId     String?
+  cashSession       CashSession?     @relation(fields: [cashSessionId], references: [id], onDelete: SetNull)
   createdAt         DateTime         @default(now())
   items             SaleItem[]
+  cashMovements     CashMovement[]
 
   @@unique([companyId, receiptCode])
   @@unique([companyId, clientRequestId])
@@ -230,4 +256,59 @@ model SaleItem {
   subtotal    Decimal  @db.Decimal(12, 2)
 
   @@index([saleId])
+}
+
+model CashSession {
+  id              String            @id @default(cuid())
+  companyId       String
+  company         Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  status          CashSessionStatus @default(OPEN)
+  initialAmount   Decimal           @db.Decimal(12, 2)
+  openingNotes    String?
+  openedByUserId  String
+  openedBy        User              @relation("CashSessionOpenedBy", fields: [openedByUserId], references: [id], onDelete: Restrict)
+  openedAt        DateTime          @default(now())
+  closedAt        DateTime?
+  closedByUserId  String?
+  closedBy        User?             @relation("CashSessionClosedBy", fields: [closedByUserId], references: [id], onDelete: SetNull)
+  closingNotes    String?
+  countedAmount   Decimal?          @db.Decimal(12, 2)
+  expectedAmount  Decimal?          @db.Decimal(12, 2)
+  difference      Decimal?          @db.Decimal(12, 2)
+  movements       CashMovement[]
+  sales           Sale[]
+
+  @@index([companyId, status])
+  @@index([companyId, openedAt])
+}
+
+model CashMovement {
+  id               String             @id @default(cuid())
+  companyId        String
+  company          Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  cashSessionId    String
+  cashSession      CashSession        @relation(fields: [cashSessionId], references: [id], onDelete: Restrict)
+  type             CashMovementType
+  origin           CashMovementOrigin
+  inCash           Boolean            @default(true)
+  amount           Decimal            @db.Decimal(12, 2)
+  description      String
+  justification    String?
+  saleId           String?
+  sale             Sale?              @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  reversalOfId     String?
+  reversalOf       CashMovement?      @relation("MovementReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
+  reversals        CashMovement[]     @relation("MovementReversal")
+  reversedAt       DateTime?
+  reversedByUserId String?
+  reversedBy       User?              @relation("MovementReversedBy", fields: [reversedByUserId], references: [id], onDelete: SetNull)
+  reversalReason   String?
+  createdByUserId  String
+  createdBy        User               @relation(fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdAt        DateTime           @default(now())
+
+  @@unique([origin, saleId])
+  @@index([companyId, createdAt])
+  @@index([companyId, cashSessionId])
+  @@index([companyId, saleId])
 }
