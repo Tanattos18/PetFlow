@@ -119,6 +119,20 @@ Etapa 1; os demais endpoints ficam em `/api/...`.
   `npm test`; a migration é aplicada no setup. `tests/sales.test.ts`
   abre uma sessão de caixa no `beforeAll`.
 
+## Clientes, pets e serviços (Etapa 5)
+
+- Endpoints, payloads e permissões: `docs/architecture/API.md`.
+- Escrita de clientes/pets é liberada a qualquer usuário autenticado;
+  escrita de serviços exige papel `ADMIN` (catálogo/preços).
+- Anti-duplicidade de cliente é checada na aplicação (409 com nome +
+  contato iguais a um ativo) — nome de serviço é único no banco
+  (`(companyId, nameKey)`).
+- `/pdv` envia `clientId` opcional no payload da venda; sem seleção,
+  vende rápido (comportamento da Etapa 3 preservado).
+- Testes novos em `tests/clients.test.ts`, `tests/pets.test.ts`,
+  `tests/services.test.ts` (+ casos em `tests/sales.test.ts`) rodam no
+  `petflow_test` via `npm test`; a migration é aplicada no setup.
+
 ## Estrutura rápida
 
 Ver `docs/architecture/ARCHITECTURE.md` e o `README.md` na raiz.

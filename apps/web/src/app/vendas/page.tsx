@@ -192,6 +192,7 @@ export default function VendasPage() {
             <tr className="border-b border-slate-200 text-xs uppercase text-slate-500">
               <th className="px-4 py-3">Data</th>
               <th className="px-4 py-3">Código</th>
+              <th className="px-4 py-3">Cliente</th>
               <th className="px-4 py-3">Itens</th>
               <th className="px-4 py-3">Pagamento</th>
               <th className="px-4 py-3">Total</th>
@@ -208,6 +209,7 @@ export default function VendasPage() {
                 <td className="px-4 py-3 font-mono text-xs font-semibold text-slate-800">
                   {sale.receiptCode}
                 </td>
+                <td className="px-4 py-3 text-slate-600">{sale.client?.name ?? "—"}</td>
                 <td className="px-4 py-3 text-slate-600">{sale.items.length}</td>
                 <td className="px-4 py-3 text-slate-600">
                   {paymentMethodLabels[sale.paymentMethod]}
@@ -238,7 +240,7 @@ export default function VendasPage() {
             ))}
             {!sales.length && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
+                <td colSpan={8} className="px-4 py-8 text-center text-slate-400">
                   Nenhuma venda encontrada.
                 </td>
               </tr>

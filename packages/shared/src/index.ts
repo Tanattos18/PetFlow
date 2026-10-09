@@ -286,6 +286,7 @@ export const createSaleSchema = z.object({
   discount: priceFieldSchema.default("0"),
   paymentMethod: paymentMethodSchema,
   paymentNote: optionalText(300),
+  clientId: z.string().trim().min(1, "Cliente inválido").max(60).optional().nullable(),
   clientRequestId: z
     .string()
     .trim()
@@ -415,3 +416,161 @@ export const cashSummaryQuerySchema = z.object({
   sessionId: z.string().trim().max(60).optional(),
 });
 export type CashSummaryQuery = z.infer<typeof cashSummaryQuerySchema>;
+
+// ---------------------------------------------------------------------------
+// Etapa 5 — clientes, pets e serviços
+// ---------------------------------------------------------------------------
+
+export const petSpeciesSchema = z.enum([
+  "DOG",
+  "CAT",
+  "BIRD",
+  "RODENT",
+  "REPTILE",
+  "FISH",
+  "OTHER",
+]);
+export type PetSpecies = z.infer<typeof petSpeciesSchema>;
+
+export const petSexSchema = z.enum(["MALE", "FEMALE", "UNKNOWN"]);
+export type PetSex = z.infer<typeof petSexSchema>;
+
+export const petSpeciesLabels: Record<PetSpecies, string> = {
+  DOG: "Cachorro",
+  CAT: "Gato",
+  BIRD: "Ave",
+  RODENT: "Roedor",
+  REPTILE: "Réptil",
+  FISH: "Peixe",
+  OTHER: "Outro",
+};
+
+export const petSexLabels: Record<PetSex, string> = {
+  MALE: "Macho",
+  FEMALE: "Fêmea",
+  UNKNOWN: "Não informado",
+};
+
+export function normalizePhone(value: string): string {
+  return value.replace(/\D+/g, "");
+}
+
+const phoneField = z
+  .string()
+  .trim()
+  .max(30, "Telefone deve ter no máximo 30 caracteres")
+  .transform((value) => normalizePhone(value))
+  .refine(
+    (value) => value.length === 0 || (value.length >= 8 && value.length <= 15),
+    "Telefone deve ter de 8 a 15 dígitos",
+  );
+
+const cpfField = z
+  .string()
+  .trim()
+  .max(20, "CPF deve ter no máximo 20 caracteres")
+  .transform((value) => value.replace(/\D+/g, ""))
+  .refine((value) => value.length === 0 || value.length === 11, "CPF deve ter 11 dígitos");
+
+export const createClientSchema = z.object({
+  name: nameField,
+  phone: phoneField.optional().nullable(),
+  mobile: phoneField.optional().nullable(),
+  email: emailFieldSchema.optional().nullable(),
+  cpf: cpfField.optional().nullable(),
+  street: optionalText(120),
+  number: optionalText(20),
+  complement: optionalText(80),
+  district: optionalText(80),
+  city: optionalText(80),
+  state: optionalText(40),
+  zip: optionalText(12),
+  notes: optionalText(500),
+});
+export type CreateClientInput = z.infer<typeof createClientSchema>;
+
+export const updateClientSchema = createClientSchema.partial();
+export type UpdateClientInput = z.infer<typeof updateClientSchema>;
+
+export const listClientsQuerySchema = paginationQuerySchema.extend({
+  search: z.string().trim().max(120).optional(),
+  status: recordStatusSchema.optional(),
+  orderBy: z.enum(["name", "createdAt"]).default("name"),
+  direction: z.enum(["asc", "desc"]).default("asc"),
+});
+export type ListClientsQuery = z.infer<typeof listClientsQuerySchema>;
+
+const weightField = z
+  .union([z.number(), z.string()])
+  .transform((value) => (typeof value === "number" ? String(value) : value.trim()))
+  .refine(
+    (value) =>
+      /^\d+(\.\d{1,2})?$/.test(value) && Number(value) > 0 && Number(value) <= 999.99,
+    "Peso inválido (máximo 999,99)",
+  );
+
+const petBaseSchema = z.object({
+  clientId: z.string().trim().min(1, "Responsável é obrigatório").max(60),
+  name: nameField,
+  species: petSpeciesSchema,
+  breed: optionalText(80),
+  sex: petSexSchema.default("UNKNOWN"),
+  birthDate: dateField.optional().nullable(),
+  weight: weightField.optional().nullable(),
+  color: optionalText(60),
+  notes: optionalText(500),
+});
+
+function checkPetBirthDate(
+  value: { birthDate?: string | null },
+  ctx: z.RefinementCtx,
+) {
+  if (value.birthDate && value.birthDate > new Date().toISOString().slice(0, 10)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["birthDate"],
+      message: "Data de nascimento não pode ser no futuro",
+    });
+  }
+}
+
+export const createPetSchema = petBaseSchema.superRefine(checkPetBirthDate);
+export type CreatePetInput = z.infer<typeof createPetSchema>;
+
+export const updatePetSchema = petBaseSchema.partial().superRefine(checkPetBirthDate);
+export type UpdatePetInput = z.infer<typeof updatePetSchema>;
+
+export const listPetsQuerySchema = paginationQuerySchema.extend({
+  search: z.string().trim().max(120).optional(),
+  clientId: z.string().trim().max(60).optional(),
+  species: petSpeciesSchema.optional(),
+  status: recordStatusSchema.optional(),
+  orderBy: z.enum(["name", "createdAt"]).default("name"),
+  direction: z.enum(["asc", "desc"]).default("asc"),
+});
+export type ListPetsQuery = z.infer<typeof listPetsQuerySchema>;
+
+export const createServiceSchema = z.object({
+  name: nameField,
+  description: optionalText(1000),
+  durationMinutes: z.coerce
+    .number()
+    .int("Duração deve ser um número inteiro de minutos")
+    .min(1, "Duração mínima de 1 minuto")
+    .max(1440, "Duração máxima de 1440 minutos (24h)")
+    .optional()
+    .nullable(),
+  price: priceFieldSchema,
+});
+export type CreateServiceInput = z.infer<typeof createServiceSchema>;
+
+export const updateServiceSchema = createServiceSchema.partial();
+export type UpdateServiceInput = z.infer<typeof updateServiceSchema>;
+
+export const listServicesQuerySchema = paginationQuerySchema.extend({
+  search: z.string().trim().max(120).optional(),
+  status: recordStatusSchema.optional(),
+  orderBy: z.enum(["name", "price", "createdAt"]).default("name"),
+  direction: z.enum(["asc", "desc"]).default("asc"),
+});
+export type ListServicesQuery = z.infer<typeof listServicesQuerySchema>;

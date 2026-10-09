@@ -1,5 +1,44 @@
 # Banco de dados — diretrizes e modelo atual
 
+## Modelos implementados (Etapa 5)
+
+Migration: `database/prisma/migrations/20261009222638_etapa5_clients_pets_services`
+(aditiva — não altera nem remove dados existentes).
+
+| Modelo | Campos principais | Restrições/índices |
+|---|---|---|
+| `Client` | `companyId` (FK `Restrict`), `name`, `nameKey`, `phone?`, `mobile?`, `email?`, `cpf?`, endereço (`street?`, `number?`, `complement?`, `district?`, `city?`, `state?`, `zip?`), `notes?`, `status` (enum `RecordStatus`), timestamps, `pets`, `sales` | índices `(companyId, nameKey)`, `(companyId, status)`, `(companyId, name)`, `(companyId, phone)`, `(companyId, mobile)`, `(companyId, email)`; **sem unique** em `nameKey` — duplicidade é checada na aplicação (mesmo nome + contato igual com ativo → 409) |
+| `Pet` | `companyId` (FK `Restrict`), `clientId` (FK `Restrict`), `name`, `species` (enum `PetSpecies`), `breed?`, `sex` (enum `PetSex`, default `UNKNOWN`), `birthDate?`, `weight?` `Decimal(6,2)`, `color?`, `notes?`, `status`, timestamps | índices `(companyId, status)`, `(companyId, name)`, `(clientId)`; responsável sempre da mesma empresa (validado na API) |
+| `Service` | `companyId` (FK `Restrict`), `name`, `nameKey`, `description?`, `durationMinutes?` (`Int`), `price` `Decimal(12,2)`, `status`, timestamps | único `(companyId, nameKey)` (nome de catálogo único por empresa, case-insensitive); índices `(companyId, status)`, `(companyId, name)` |
+
+Enums novos:
+
+- `PetSpecies`: `DOG`, `CAT`, `BIRD`, `RODENT`, `REPTILE`, `FISH`, `OTHER`.
+- `PetSex`: `MALE`, `FEMALE`, `UNKNOWN`.
+
+Alteração em modelo existente:
+
+- `Sale.clientId` (`String?`, FK → `Client`, `SetNull`, índice
+  `(companyId, clientId)`): vínculo opcional da venda com o cliente;
+  inativar/apagar cliente nunca quebra vendas antigas (snapshot dos itens
+  permanece).
+
+Regras derivadas:
+
+- **Anti-duplicidade de cliente** (suave, documentado em
+  `ClientsService`): `nameKey` = `nome.trim().toLowerCase()` com espaços
+  colapsados; telefone armazenado só com dígitos, email em minúsculas
+  (normalização feita no Zod compartilhado); o bloqueio 409 ocorre quando
+  o `nameKey` coincide **e** algum contato (phone/mobile/email) também
+  coincide com cliente `ACTIVE` — homônimos sem contato e famílias com
+  mesmo telefone nunca bloqueiam; janela de corrida aceita (sem unique
+  duro no banco).
+- Nome de serviço é único por empresa via `nameKey` (mesmo padrão das
+  categorias); preços `Decimal(12,2)` não negativos.
+- Cliente/Pet com `status = INACTIVE` permanecem para histórico; pet de
+  cliente inativo não pode ser criado (400), mas os existentes são
+  preservados.
+
 ## Modelos implementados (Etapa 4)
 
 Migration: `database/prisma/migrations/20261009212628_etapa4_cash_finance`.

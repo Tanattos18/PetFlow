@@ -20,6 +20,11 @@ let productP2: string;
 let productInactive: string;
 let productCompanyB: string;
 let productConcurrent: string;
+let productClientSale: string;
+
+let clientIdA: string;
+let clientIdB: string;
+let clientIdInactive: string;
 
 let saleOneId: string;
 let saleOneReceipt: string;
@@ -132,6 +137,46 @@ beforeAll(async () => {
     },
   });
   productConcurrent = concurrent.id;
+
+  const clientSaleProduct = await prisma.product.create({
+    data: {
+      companyId: companyA.id,
+      name: "Produto Venda com Cliente",
+      sku: "CLI-001",
+      salePrice: "25.00",
+      stockQuantity: 10,
+    },
+  });
+  productClientSale = clientSaleProduct.id;
+
+  const clientA = await prisma.client.create({
+    data: {
+      companyId: companyA.id,
+      name: "Cliente Vendas",
+      nameKey: "cliente vendas",
+      phone: "11900001111",
+    },
+  });
+  clientIdA = clientA.id;
+
+  const clientB = await prisma.client.create({
+    data: {
+      companyId: companyB.id,
+      name: "Cliente Vendas B",
+      nameKey: "cliente vendas b",
+    },
+  });
+  clientIdB = clientB.id;
+
+  const clientInactive = await prisma.client.create({
+    data: {
+      companyId: companyA.id,
+      name: "Cliente Inativo Vendas",
+      nameKey: "cliente inativo vendas",
+      status: "INACTIVE",
+    },
+  });
+  clientIdInactive = clientInactive.id;
 
   adminACookie = await login("admin@vendas-a.test");
   memberACookie = await login("membro@vendas-a.test");
@@ -611,5 +656,86 @@ describe("Isolamento multiempresa", () => {
     expect(sale?.status).toBe("COMPLETED");
     expect(sale?.cancelReason).toBeNull();
     expect(await getStock(productP1)).toBe("8.000");
+  });
+});
+
+describe("Venda com cliente opcional (Etapa 5)", () => {
+  let saleWithClientId: string;
+
+  it("venda com clientId vincula o cliente no recibo", async () => {
+    const response = await request(app.getHttpServer())
+      .post("/api/sales")
+      .set("Cookie", memberACookie)
+      .send({
+        items: [{ productId: productClientSale, quantity: "1" }],
+        paymentMethod: "PIX",
+        clientId: clientIdA,
+        clientRequestId: "req-venda-cliente-0001",
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.clientId).toBe(clientIdA);
+    expect(response.body.client).toEqual({ id: clientIdA, name: "Cliente Vendas" });
+
+    saleWithClientId = response.body.id;
+
+    const detail = await request(app.getHttpServer())
+      .get(`/api/sales/${saleWithClientId}`)
+      .set("Cookie", adminACookie);
+    expect(detail.status).toBe(200);
+    expect(detail.body.client.name).toBe("Cliente Vendas");
+
+    expect(await getStock(productClientSale)).toBe("9.000");
+  });
+
+  it("venda rápida sem cliente continua funcionando", async () => {
+    const response = await request(app.getHttpServer())
+      .post("/api/sales")
+      .set("Cookie", memberACookie)
+      .send({
+        items: [{ productId: productClientSale, quantity: "1" }],
+        paymentMethod: "CASH",
+        clientRequestId: "req-venda-cliente-0002",
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.clientId).toBeNull();
+    expect(response.body.client).toBeNull();
+    expect(await getStock(productClientSale)).toBe("8.000");
+  });
+
+  it("clientId de outra empresa é rejeitado e não altera nada", async () => {
+    const before = await prisma.sale.count({ where: { companyId: companyAId } });
+
+    const response = await request(app.getHttpServer())
+      .post("/api/sales")
+      .set("Cookie", memberACookie)
+      .send({
+        items: [{ productId: productClientSale, quantity: "1" }],
+        paymentMethod: "CASH",
+        clientId: clientIdB,
+        clientRequestId: "req-venda-cliente-0003",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Cliente inválido ou de outra empresa");
+    expect(await prisma.sale.count({ where: { companyId: companyAId } })).toBe(before);
+    expect(await getStock(productClientSale)).toBe("8.000");
+  });
+
+  it("cliente inativo é rejeitado na venda", async () => {
+    const response = await request(app.getHttpServer())
+      .post("/api/sales")
+      .set("Cookie", memberACookie)
+      .send({
+        items: [{ productId: productClientSale, quantity: "1" }],
+        paymentMethod: "CASH",
+        clientId: clientIdInactive,
+        clientRequestId: "req-venda-cliente-0004",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.message).toBe("Cliente está inativo");
+    expect(await getStock(productClientSale)).toBe("8.000");
   });
 });

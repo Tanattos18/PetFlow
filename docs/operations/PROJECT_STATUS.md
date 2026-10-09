@@ -2,45 +2,51 @@
 
 ## Etapa atual
 
-**Etapa 4 — Caixa e financeiro** — CONCLUÍDA
+**Etapa 5 — Clientes, pets e serviços** — CONCLUÍDA
 (aguardando aprovação do proprietário para avançar).
 
 Data: 2026-10-09.
 
 Etapas anteriores: Etapa 0 (2026-10-09), Etapa 1 (2026-10-09),
-Etapa 2 (2026-10-09), Etapa 3 (2026-10-09).
+Etapa 2 (2026-10-09), Etapa 3 (2026-10-09), Etapa 4 (2026-10-09).
 
-## Entregas concluídas (Etapa 4)
+## Entregas concluídas (Etapa 5)
 
-- [x] Migration `20261009212628_etapa4_cash_finance` aplicada em `petflow`
-      (dev) e `petflow_test` (testes); schema validado.
-- [x] Modelos: `CashSession` (sessão única aberta por empresa, valores de
-      abertura/fechamento em `Decimal(12,2)`, auditoria de quem abriu/
-      fechou) e `CashMovement` (ledger imutável com `type`, `origin`,
-      `inCash`, justificativa, vínculo com venda e auto-relação de
-      estorno, único `(origin, saleId)`); `Sale.cashSessionId` (FK
-      `SetNull`); enums `CashSessionStatus`, `CashMovementType`,
-      `CashMovementOrigin`.
-- [x] API módulo `cash` (prefixo `/api`): abrir/consultar/fechar
-      sessões (`GET /sessions/current` responde 404 sem sessão),
-      movimentações manuais (`POST /movements`, `OUT` exige
-      justificativa) e histórico com filtros, estorno auditável
-      (`POST /movements/:id/reversal`) e resumo financeiro
-      (`GET /summary`) — escrita restrita a ADMIN, leitura autenticada.
-- [x] Integração com vendas: `POST /sales` e `POST /sales/:id/cancel`
-      exigem caixa aberto (409) e gravam `cashSessionId` + lançamento
-      único (`SALE`/`SALE_CANCELMENT`) na mesma transação; `inCash` =
-      venda/cancelamento em dinheiro.
-- [x] Regras: saldo esperado e diferença calculados no servidor no
-      fechamento; abertura serializada por lock na `Company` (duplicidade
-      → 409); estorno apenas de `MANUAL` não estornado na sessão aberta
-      (duplo → 409; venda → 400); ordem de locks sessão → produtos.
-- [x] Frontend: `/caixa` (situação, abertura, form entrada/saída e
-      movimentações recentes), `/caixa/fechar` (esperado vs. contado com
-      diferença), `/caixa/movimentos` (filtros + estorno), `/caixa/sessoes`
-      (histórico), `/financeiro` (resumo por período); banner "Caixa
-      fechado" com bloqueio de finalização no `/pdv`; home exibe "Caixa e
-      financeiro" como módulo disponível; badge "Etapa 4".
+- [x] Migration aditiva `20261009222638_etapa5_clients_pets_services`
+      aplicada em `petflow` (dev) e `petflow_test` (testes); schema
+      validado; nenhum dado existente alterado.
+- [x] Modelos: `Client` (contatos normalizados, endereço estruturado,
+      `nameKey` com índice — sem unique, política de duplicidade suave),
+      `Pet` (espécie/sexo/nascimento/peso, FK `Restrict` ao responsável)
+      e `Service` (nome único por empresa via `nameKey`, preço
+      `Decimal(12,2)`, duração opcional 1..1440 min);
+      `Sale.clientId` opcional (FK `SetNull` + índice); enums
+      `PetSpecies` e `PetSex`.
+- [x] API módulos `clients`, `pets` e `services` (prefixo `/api`):
+      listagem com busca/filtros/paginação, detalhe, criação, edição e
+      `PATCH /:id/status`; `GET /clients/:id/pets`; escrita de
+      clientes/pets autenticada (MEMBER), escrita de serviços restrita
+      a ADMIN; leitura de tudo autenticada; recursos de outra empresa →
+      404.
+- [x] Anti-duplicidade de clientes: `nameKey` + contato igual com
+      cliente `ACTIVE` → 409 `"Cliente possivelmente duplicado"`;
+      homônimos sem contato e famílias com mesmo telefone são permitidos;
+      pre-check documentado no serviço (sem unique duro no banco).
+- [x] Integração venda–cliente: `POST /sales` aceita `clientId`
+      opcional validado no servidor (ativo + mesma empresa; caso
+      contrário 400); listagem e detalhe retornam `client`; venda rápida
+      sem cliente continua funcionando; snapshots/totais preservados.
+- [x] Schemas Zod compartilhados (`@petflow/shared`) de clientes, pets
+      e serviços + enums/labels; `createSaleSchema` com `clientId`
+      opcional; validações de data futura, peso e duração.
+- [x] Frontend: `/clientes` (lista com busca e contagem de pets,
+      cadastro/endereço completo, ativar/inativar),
+      `/clientes/[id]` (ficha + gestão de pets),
+      `/pets` (listagem global com filtros e cadastro/edição),
+      `/servicos` (catálogo, escrita só ADMIN); `/pdv` com seletor
+      opcional de cliente; `/vendas` e detalhe exibem o cliente; home
+      com "Clientes e animais" e "Serviços" disponíveis; badge
+      "Etapa 5".
 
 ## Testes executados
 
@@ -49,32 +55,35 @@ Etapa 2 (2026-10-09), Etapa 3 (2026-10-09).
 | Schema Prisma válido | `npm run db:validate` | OK |
 | Lint | `npm run lint` | OK (0 erros) |
 | Typecheck | `npm run typecheck` | OK (4 workspaces) |
-| Testes (PostgreSQL real) | `npm test` | 141/141 aprovados (8 arquivos) |
-| Build | `npm run build` | OK (shared, api, web, worker) |
-| E2E API + web | script `e2e-etapa4.ps1` | 30/30 verificações OK |
+| Testes (PostgreSQL real) | `npm test` | 190/190 aprovados (11 arquivos) |
+| Build | `npm run build` | OK (shared, api, web, worker; 22 rotas) |
+| E2E API + web | script `e2e-etapa5.ps1` | 40/40 verificações OK |
 
-Cobertura dos testes novos (37): abertura (duplicidade 409, permissão
-403, saldo inicial), movimentações manuais (validações de valor/
-justificativa, permissão), integração com vendas (lançamento `SALE` com
-`inCash` verdadeiro para dinheiro e falso para Pix, cancelamento com
-lançamento único mesmo em recancelamento 409), estorno (403 membro, motivo
-curto 400, criação do compensatório + marcação do original, duplo 409,
-lançamento de venda 400), resumo financeiro (totais por período,
-filtro por sessão, período vazio com zeros, leitura por membro),
-fechamento (esperado/diferença server-side, duplo 409, bloqueio de
-venda/movimentação/estorno pós-fechamento, 4 aberturas concorrentes →
-exatamente 1 sucesso) e isolamento multiempresa (sessão/histórico/
-resumo/estorno de outra empresa → 404/zero/vazio).
+Cobertura dos testes novos (49): clientes (normalização de telefone/
+email/CPF, duplicidade 409 vs. homônimos e famílias, cliente inativo
+não bloqueia novo cadastro, busca/paginação, isolamento multiempresa,
+contagem de pets/vendas, permissão MEMBER), pets (sexo padrão,
+formatação de peso/nascimento, responsável inválido/inativo, espécie/
+data/peso inválidos, filtros, troca de responsável dentro da empresa e
+recusa entre empresas, status), serviços (criação ADMIN, 403 MEMBER na
+escrita e leitura liberada, nome duplicado 409, validações de preço/
+duração, ordenação por preço, edição/inativação) e vendas com cliente
+(vínculo no recibo e detalhe, venda rápida sem cliente, `clientId` de
+outra empresa e cliente inativo rejeitados).
 
 ## Pendências conhecidas
 
 - CI (lint + typecheck + testes) quando solicitado.
-- Validação de formato de CPF/CNPJ (hoje apenas texto com limite de
-  tamanho) — avaliar na etapa de clientes/fornecedores avançado.
-- Estoque negativo nunca é permitido por padrão; se houver necessidade
-  futura de venda com saldo insuficiente (backorder), será decisão explícita.
-- Formas de pagamento configuráveis além de Dinheiro/Cartão/Pix/Outro
-  (hoje "Outro" aceita descrição livre).
+- Validação de dígitos verificadores de CPF/CNPJ (hoje CPF valida
+  apenas 11 dígitos) — avaliar em etapa avançada.
+- Duplicidade de clientes: janela de corrida aceita (sem unique duro de
+  `nameKey`) — se necessária garantia forte, migrar para tabela de
+  identidade/contato deduplicada.
+- Itens de serviço em vendas: fora do escopo da Etapa 5 (catálogo de
+  serviços é preparação para agendamentos da Etapa 6).
+- Estoque negativo nunca é permitido por padrão; backorder seria decisão
+  explícita.
+- Formas de pagamento configuráveis além de Dinheiro/Cartão/Pix/Outro.
 - Vendas anteriores à Etapa 4 (sem `cashSessionId`/lançamento) ficam fora
   do financeiro — limitação de dados de desenvolvimento.
 - Integração da pasta `automação do whatsapp/` em etapa própria.
@@ -88,10 +97,12 @@ resumo/estorno de outra empresa → 404/zero/vazio).
 - `912d1c8` feat(etapa-3): implementa vendas e ponto de venda
 - `6ae287d` feat(etapa-4): implementa caixa e financeiro
 - `bf2d5a9` docs: registra hash do commit da etapa 4
-- Push confirmado: `2af5ba7..bf2d5a9 main -> main` (árvore de trabalho
-  em sincronia com `origin/main` após a Etapa 4).
+- `398ad85` docs: registra push da etapa 4
+- `59ef5a2` docs: reescreve README com roadmap das 9 etapas
+- Push confirmado até `59ef5a2` antes da Etapa 5; hash do commit da
+  Etapa 5 registrado nesta seção após o push.
 
 ## Próxima etapa autorizada
 
-**Etapa 5 — a definir** — a iniciar somente após aprovação explícita do
+**Etapa 6 — a definir** — a iniciar somente após aprovação explícita do
 proprietário.

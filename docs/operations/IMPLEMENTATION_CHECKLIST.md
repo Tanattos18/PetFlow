@@ -159,13 +159,55 @@ Escopo definido em `Etapas_projeto/PetFlow_Prompt_OpenCode_Etapa_2.md`.
       ARCHITECTURE, DEVELOPMENT)
 - [x] Commit e push (ver relatório final / PROJECT_STATUS)
 
+## Etapa 5 — Clientes, pets e serviços (2026-10-09)
+
+- [x] Etapa 4 confirmada funcional (141/141 testes antes de iniciar;
+      auditoria de lint/typecheck/build/db:validate sem problemas)
+- [x] Schema: `Client`, `Pet`, `Service`; enums `PetSpecies`, `PetSex`;
+      `Sale.clientId` opcional (FK `SetNull` + índice); migration aditiva
+      `20261009222638_etapa5_clients_pets_services` aplicada em `petflow`
+      e `petflow_test`; `npm run db:validate` OK
+- [x] CRUD de clientes pela API com busca (nome/telefone/email/CPF),
+      paginação e status; endereço estruturado; contatos normalizados
+      (telefone só dígitos, email minúsculo)
+- [x] Política de duplicidade de cliente: `nameKey` + contato igual com
+      cliente ativo → 409; homônimos sem contato e famílias com mesmo
+      telefone permitidos; cliente inativo não bloqueia novo cadastro
+- [x] CRUD de pets pela API (espécie/sexo/nascimento/peso/raça/cor),
+      responsável validado no servidor (ativo e da mesma empresa), troca
+      de responsável, busca por pet/raça/cor/responsável e filtros
+- [x] CRUD de serviços pela API: nome único por empresa (case-insensitive
+      com espaços colapsados), preço obrigatório ≥ 0, duração 1..1440;
+      escrita restrita a ADMIN, leitura autenticada
+- [x] `GET /api/clients/:id/pets` (pets do responsável) e detalhe de pet
+      com responsável
+- [x] Integração venda–cliente: `POST /sales` aceita `clientId` opcional
+      validado (ativo + mesma empresa → 400 caso contrário); listagem e
+      detalhe retornam `client`; venda rápida sem cliente preservada
+- [x] Frontend: `/clientes` (lista/busca/cadastro completo/inativação),
+      `/clientes/[id]` (ficha + pets), `/pets` (listagem com filtros +
+      cadastro/edição), `/servicos` (escrita ADMIN); `/pdv` com seletor
+      opcional de cliente; `/vendas` e detalhe com cliente; home com
+      módulos disponíveis; badge "Etapa 5"
+- [x] Testes: 190/190 aprovados em PostgreSQL real (49 novos:
+      `clients.test.ts` 20, `pets.test.ts` 12, `services.test.ts` 13,
+      `sales.test.ts` +4)
+- [x] `npm run lint`, `npm run typecheck`, `npm run build`,
+      `npm run db:validate` OK
+- [x] Validação E2E manual: 40/40 verificações (normalizações, 409 de
+      duplicidade, validações 400, venda com cliente, venda rápida sem
+      cliente, páginas 200)
+- [x] Documentação atualizada (CHANGELOG, STATUS, DATABASE, API,
+      ARCHITECTURE, DEVELOPMENT, README)
+- [x] Commit e push (ver relatório final / PROJECT_STATUS)
+
 ## Etapas futuras — módulos de negócio
 
-- [ ] Cadastro de clientes e animais
+- [x] Cadastro de clientes e animais (Etapa 5)
 - [x] Produtos e estoque (Etapa 2)
 - [x] Vendas e PDV (Etapa 3)
 - [x] Caixa e financeiro (Etapa 4)
-- [ ] Serviços e agendamentos
+- [ ] Catálogo de serviços está pronto (Etapa 5); agendamentos na Etapa 6
 - [ ] Automação WhatsApp
 - [ ] Dashboard e relatórios
 - [ ] Assinaturas/multiempresa comercial

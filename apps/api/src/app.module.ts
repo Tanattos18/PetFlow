@@ -10,6 +10,9 @@ import { ProductsModule } from "./products/products.module";
 import { StockModule } from "./stock/stock.module";
 import { SalesModule } from "./sales/sales.module";
 import { CashModule } from "./cash/cash.module";
+import { ClientsModule } from "./clients/clients.module";
+import { PetsModule } from "./pets/pets.module";
+import { ServicesModule } from "./services/services.module";
 import { AuthGuard } from "./common/guards/auth.guard";
 
 @Module({
@@ -23,6 +26,9 @@ import { AuthGuard } from "./common/guards/auth.guard";
     StockModule,
     SalesModule,
     CashModule,
+    ClientsModule,
+    PetsModule,
+    ServicesModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: AuthGuard }],

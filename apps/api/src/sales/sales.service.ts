@@ -19,6 +19,7 @@ import { lockOpenCashSession } from "../cash/cash-session.helpers";
 const saleSelect = {
   id: true,
   receiptCode: true,
+  clientId: true,
   status: true,
   subtotal: true,
   discount: true,
@@ -30,6 +31,7 @@ const saleSelect = {
   cancelReason: true,
   createdBy: { select: { id: true, name: true } },
   cancelledBy: { select: { id: true, name: true } },
+  client: { select: { id: true, name: true } },
   items: {
     select: {
       id: true,
@@ -104,6 +106,21 @@ export class SalesService {
           "registrar vendas",
         );
 
+        // Cliente é opcional; leitura simples (sem FOR UPDATE, sem risco de
+        // deadlock) feita antes dos locks de produto.
+        if (input.clientId) {
+          const client = await tx.client.findFirst({
+            where: { id: input.clientId, companyId: auth.companyId },
+            select: { id: true, status: true },
+          });
+          if (!client) {
+            throw new BadRequestException("Cliente inválido ou de outra empresa");
+          }
+          if (client.status !== "ACTIVE") {
+            throw new BadRequestException("Cliente está inativo");
+          }
+        }
+
         const products = new Map<string, LockedProduct>();
 
         for (const productId of sortedProductIds) {
@@ -161,6 +178,7 @@ export class SalesService {
           data: {
             companyId: auth.companyId,
             receiptCode,
+            clientId: input.clientId ?? null,
             clientRequestId: input.clientRequestId ?? null,
             subtotal,
             discount,

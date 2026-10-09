@@ -25,8 +25,19 @@ const plannedModules = [
     href: "/caixa",
     available: true,
   },
-  { name: "Clientes e animais", description: "Cadastro de tutores e pets" },
-  { name: "Serviços e agendamentos", description: "Banho, tosa e agenda" },
+  {
+    name: "Clientes e animais",
+    description: "Cadastro de tutores, pets e fichas",
+    href: "/clientes",
+    available: true,
+  },
+  {
+    name: "Serviços",
+    description: "Catálogo de serviços, preços e durações",
+    href: "/servicos",
+    available: true,
+  },
+  { name: "Agendamentos", description: "Banho, tosa e agenda" },
   { name: "Automação WhatsApp", description: "Mensagens e atendimento automatizado" },
   { name: "Dashboard e relatórios", description: "Indicadores gerenciais" },
 ];
@@ -103,6 +114,12 @@ export default function HomePage() {
               className="rounded-md border border-teal-700 px-3 py-2 text-sm font-medium text-teal-800 hover:bg-teal-100"
             >
               Produtos e estoque
+            </Link>
+            <Link
+              href="/clientes"
+              className="rounded-md border border-teal-700 px-3 py-2 text-sm font-medium text-teal-800 hover:bg-teal-100"
+            >
+              Clientes
             </Link>
             {session.user.role === "ADMIN" && (
               <Link

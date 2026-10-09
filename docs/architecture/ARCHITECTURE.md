@@ -178,3 +178,30 @@ tests/        → testes compartilhados/integração
   `/caixa/sessoes` (histórico) e `/financeiro` (resumo por período);
   `/pdv` exibe banner "Caixa fechado" e bloqueia a finalização enquanto
   `GET /cash/sessions/current` retornar 404.
+
+## Módulo clientes, pets e serviços (Etapa 5)
+
+- **Duplicidade de cliente por aplicação, não por unique**: `nameKey`
+  (nome colapsado/minúsculo) tem apenas índice comum; o 409
+  ("possivelmente duplicado") só dispara quando `nameKey` **e** algum
+  contato coincidem com um cliente `ACTIVE`. Unique duro foi descartado
+  (bloqueia homônimos e famílias com mesmo telefone); a janela de
+  corrida aceita — documentada em `DATABASE.md` e no serviço.
+- **Normalização na borda do domínio** (Zod compartilhado): telefone/CPF
+  só dígitos, email minúsculo — evita duplicidade por formatação.
+- **Serviço único por empresa** via `@@unique([companyId, nameKey])`
+  (mesmo padrão das categorias): catálogo/preços são dados mestres.
+- **Permissões assimétricas por natureza do dado**: clientes/pets são
+  operação diária (leitura e escrita autenticada — MEMBER pode);
+  serviços definem preço/catálogo (escrita restrita a `ADMIN`).
+- **Venda com cliente opcional**: `Sale.clientId` (`SetNull`) validado
+  antes dos locks (400 se inativo/estrangeiro); listagem/detalhe
+  retornam `client`; snapshots dos itens permanecem — inativar cliente
+  nunca quebra histórico. Venda rápida sem cliente é o default do PDV.
+- **Pet sempre com responsável da mesma empresa** (`Restrict` + checagem
+  no servidor): recusa responsável inativo/estrangeiro; nascimento futuro
+  e peso fora de faixa rejeitados (400) antes de tocar o banco.
+- **Frontend**: `/clientes` + `/clientes/[id]` (ficha + pets), `/pets`
+  (listagem global com filtros), `/servicos` (escrita ADMIN), seletor
+  opcional de cliente no `/pdv`, coluna "Cliente" em `/vendas`;
+  home lista "Clientes e animais" e "Serviços" como módulos disponíveis.

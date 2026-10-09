@@ -10,11 +10,11 @@ do cliente.
 
 | Código | Quando |
 |---|---|
-| 400 | Payload/query inválido (Zod) ou regra de negócio (saldo insuficiente, ajuste negativo, categoria/fornecedor inválidos, produto inativo) |
+| 400 | Payload/query inválido (Zod) ou regra de negócio (saldo insuficiente, ajuste negativo, categoria/fornecedor/produto/cliente/responsável inválidos, cliente/responsável inativo, data de nascimento futura) |
 | 401 | Sem sessão ou sessão inválida/expirada |
 | 403 | Sem papel `ADMIN` em rotas de escrita restrita |
 | 404 | Recurso inexistente **ou** de outra empresa (sem vazar existência) |
-| 409 | Conflito de unicidade (email, nome de categoria, SKU, barcode) |
+| 409 | Conflito de unicidade (email, nome de categoria/produto, SKU, barcode, nome de serviço, cliente possivelmente duplicado) |
 
 Respostas de erro seguem `{ statusCode, message, timestamp, path }` (Zod
 inclui `issues[]`).
@@ -110,7 +110,8 @@ Payload de criação:
   "discount": "10.00",
   "paymentMethod": "PIX",
   "paymentNote": null,
-  "clientRequestId": "uuid-gerado-pelo-cliente"
+  "clientRequestId": "uuid-gerado-pelo-cliente",
+  "clientId": "cuid-do-cliente-opcional"
 }
 ```
 
@@ -118,11 +119,16 @@ Payload de criação:
   enviados pelo cliente são descartados; o servidor usa `salePrice` do
   banco. Desconto `>` subtotal → 400; quantidade inválida ou produto
   inativo/estrangeiro à empresa → 400/404.
+- `clientId` (opcional, Etapa 5): validado no servidor **antes** dos
+  locks (cliente ativo e da mesma empresa; caso contrário 400
+  `"Cliente inválido ou de outra empresa"`/`"Cliente está inativo"`).
+  Ausente/null → venda sem cliente (venda rápida).
 - `clientRequestId` (obrigatório no frontend, único por empresa) torna a
   criação idempotente: repetição → **409** sem alterar estoque.
 - Resposta: `{ id, receiptCode, status, subtotal, discount, total,
-  paymentMethod, paymentNote, createdAt, createdBy, items: [...] }` —
-  Decimals serializados como string (`"259.70"`).
+  paymentMethod, paymentNote, createdAt, createdBy, clientId,
+  client: { id, name }, items: [...] }` — Decimals serializados como
+  string (`"259.70"`). Listagem e detalhe também incluem `client`.
 - Cancelamento: `POST :id/cancel` com `{ reason }` (mín. 3 caracteres);
   venda já cancelada → **409**; venda de outra empresa → **404**;
   membro comum → **403**. Devolve estoque com movimentos `IN`
@@ -164,6 +170,57 @@ Comportamentos importantes:
 - Estorno de lançamento `SALE`/`SALE_CANCELMENT` → 400 (usar cancelamento
   da venda); lançamento já estornado → 409; sessão fechada → 409;
   lançamento de outra empresa → 404.
+
+## Clientes (Etapa 5)
+
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| GET | `/api/clients` | sessão | Lista paginada; `search` (nome/telefone/email/CPF), `status`, `page`, `pageSize`; inclui `petsCount`/`salesCount` |
+| GET | `/api/clients/:id` | sessão | Detalhe com contagens |
+| GET | `/api/clients/:id/pets` | sessão | Pets do responsável (inclui inativos) |
+| POST | `/api/clients` | sessão | Cria (MEMBER pode — operação diária) |
+| PATCH | `/api/clients/:id` | sessão | Edita |
+| PATCH | `/api/clients/:id/status` | sessão | Ativa/inativa |
+
+- Normalização no servidor (Zod compartilhado): telefone/CPF só dígitos
+  (`normalizePhone`), email em minúsculas; endereço estruturado
+  (`street`, `number`, `complement`, `district`, `city`, `state`, `zip`).
+- **Duplicidade**: criação responde **409** `"Cliente possivelmente
+  duplicado"` quando `nameKey` + algum contato coincide com cliente
+  `ACTIVE`; homônimos sem contato e mesmo telefone em clientes distintos
+  são permitidos (política em `DATABASE.md`).
+- Recurso de outra empresa → 404; cliente inativo não bloqueia novo
+  cadastro nem edição.
+
+## Pets (Etapa 5)
+
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| GET | `/api/pets` | sessão | Lista paginada; filtros `species`, `status`, `clientId`, `search` (pet/raça/cor/responsável) |
+| GET | `/api/pets/:id` | sessão | Detalhe com responsável |
+| POST | `/api/pets` | sessão | Cria (responsável ativo da mesma empresa) |
+| PATCH | `/api/pets/:id` | sessão | Edita (troca de responsável validada) |
+| PATCH | `/api/pets/:id/status` | sessão | Ativa/inativa |
+
+- Payload: `{ clientId, name, species, breed?, sex?, birthDate? (YYYY-MM-DD),
+  weight? (kg, 0..999.99), color?, notes? }`; `sex` padrão `UNKNOWN`;
+  nascimento futuro → 400; responsável inativo/outro tenant → 400.
+- Serialização: `birthDate` `YYYY-MM-DD`, `weight` string com 2 decimais.
+
+## Serviços (Etapa 5)
+
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| GET | `/api/services` | sessão | Lista paginada; `search`, `status`, `orderBy` (name/price/createdAt) |
+| GET | `/api/services/:id` | sessão | Detalhe |
+| POST | `/api/services` | ADMIN | Cria (nome único por empresa → 409) |
+| PATCH | `/api/services/:id` | ADMIN | Edita |
+| PATCH | `/api/services/:id/status` | ADMIN | Ativa/inativa |
+
+- Payload: `{ name, description?, durationMinutes? (1..1440),
+  price (Decimal(12,2) ≥ 0) }`; `price` sempre string no wire
+  (`"80.00"`); nome duplicado na empresa → **409** `"Já existe um
+  serviço com este nome nesta empresa"`.
 
 ## Padrão para módulos futuros
 

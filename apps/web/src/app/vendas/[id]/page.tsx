@@ -133,6 +133,7 @@ export default function VendaDetalhePage() {
           <p className="text-sm text-slate-500">
             {new Date(sale.createdAt).toLocaleString("pt-BR")} · {sale.createdBy.name} ·{" "}
             {paymentMethodLabels[sale.paymentMethod]}
+            {sale.client ? ` · Cliente: ${sale.client.name}` : ""}
           </p>
         </div>
         <div className="flex gap-2">

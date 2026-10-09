@@ -2,6 +2,90 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Etapa 5] — 2026-10-09
+
+### Adicionado
+
+- Schema Prisma: modelos `Client`, `Pet` e `Service` (+ enums
+  `PetSpecies` e `PetSex`), campo opcional `Sale.clientId` (FK
+  `SetNull`, índice `(companyId, clientId)`) e migration aditiva
+  `20261009222638_etapa5_clients_pets_services` aplicada em `petflow` e
+  `petflow_test`; sem quebra de dados existentes.
+- API NestJS (prefixo `/api`, sob `AuthGuard` global):
+  - `clients`: `GET /clients` (busca por nome/telefone/mobile/email/CPF,
+    filtros de status e paginação), `GET /clients/:id`,
+    `GET /clients/:id/pets`, `POST`, `PATCH /:id`, `PATCH /:id/status`
+    (escrita autenticada — operação diária, inclui MEMBER).
+  - `pets`: `GET /pets` (busca por pet/raça/cor/responsável, filtros de
+    responsável/espécie/status), `GET /pets/:id` (com responsável),
+    `POST`, `PATCH /:id` (inclui troca de responsável validado),
+    `PATCH /:id/status` (escrita autenticada).
+  - `services`: `GET /services` (busca, ordenação por nome/preço,
+    paginação), `GET /services/:id`, `POST`, `PATCH /:id`,
+    `PATCH /:id/status` (escrita restrita a ADMIN — catálogo/preços).
+- **Anti-duplicidade de clientes** (documentado no `ClientsService`):
+  normalização server-side (`nameKey` = nome minúsculo com espaços
+  colapsados, telefone só dígitos, email minúsculo) + pre-check na mesma
+  transação — bloqueia apenas quando `nameKey` coincide **e** há telefone/
+  mobile/email igual com um cliente `ACTIVE` (409
+  `"Cliente possivelmente duplicado"`); nome sozinho nunca bloqueia
+  (homônimos), contato sozinho nunca bloqueia (famílias) e `INACTIVE`
+  não sinaliza duplicidade; sem unique duro de `nameKey` no banco (janela
+  de corrida aceita e documentada).
+- Serviços com `nameKey` único por empresa (`@@unique([companyId,
+  nameKey])`, como categorias): nome repetido (case-insensitive,
+  espaços colapsados) → 409; preço `Decimal(12,2)` obrigatório ≥ 0 e
+  duração 1..1440 minutos quando informada.
+- Integração venda–cliente: `POST /sales` aceita `clientId` opcional
+  (validado `ACTIVE` e da mesma empresa; inativo/outros → 400); listagem
+  e detalhe passam a retornar `client { id, name }`; snapshots e totais
+  das vendas preservados.
+- Schemas Zod compartilhados em `@petflow/shared`: `createClientSchema`,
+  `updateClientSchema`, `listClientsQuerySchema`, `createPetSchema`,
+  `updatePetSchema`, `listPetsQuerySchema`, `createServiceSchema`,
+  `updateServiceSchema`, `listServicesQuerySchema`, enums
+  `petSpecies`/`petSex`, labels e helpers `normalizePhone` (data de
+  nascimento no futuro → 400; peso 0..999.99 kg).
+- Frontend: `/clientes` (lista com busca, contagem de pets, formulário
+  completo de cadastro/endereço, ativar/inativar),
+  `/clientes/[id]` (ficha do responsável + gestão de pets com
+  responsável), `/pets` (listagem global com filtros de
+  espécie/responsável/status + cadastro/edição), `/servicos`
+  (catálogo com busca/preço/duração, escrita só para ADMIN); `/pdv`
+  ganha seletor opcional de cliente ("Venda rápida sem cliente" por
+  padrão); `/vendas` e detalhe exibem o cliente; home marca "Clientes e
+  animais" e "Serviços" como disponíveis (agendamentos separado "Em
+  breve"); badge "Etapa 5".
+- Testes de integração com PostgreSQL real: 49 novos testes
+  (`clients.test.ts` 20, `pets.test.ts` 12, `services.test.ts` 13 e 4 em
+  `sales.test.ts`), totalizando **190** — incluem normalização,
+  duplicidade 409 vs. homônimos/famílias, permissões MEMBER/ADMIN,
+  troca de responsável, isolamento multiempresa e venda com/sem cliente.
+- Validação E2E manual: **40/40 verificações** (CRUD de clientes/pets/
+  serviços, normalizações, 409 de duplicidade, validações 400, venda com
+  cliente, venda rápida sem cliente e páginas 200).
+
+### Regras de negócio registradas
+
+- Cliente duplicado = mesmo nome normalizado **e** mesmo contato ativo;
+  nomes iguais sem contato e contatos iguais com nomes diferentes são
+  permitidos (famílias/homônimos).
+- Leitura de clientes/pets/serviços exige sessão; escrita de clientes e
+  pets é operação diária (MEMBER), escrita de serviços é de catálogo
+  (ADMIN).
+- Vínculo de venda com cliente é opcional e validado no servidor
+  (cliente ativo da mesma empresa); PDV continua suportando venda
+  rápida sem cliente.
+- Pet sempre pertence a um responsável ativo da mesma empresa; troca de
+  responsável validada; desativação nunca apaga histórico (vendas
+  mantêm o snapshot/`SetNull`).
+
+### Preservado
+
+- Pasta `automação do whatsapp/` intacta; contratos da Etapa 4 (caixa,
+  `inCash`, 404 em `current`) inalterados; vendas sem `clientId`
+  continuam válidas.
+
 ## [Etapa 4] — 2026-10-09
 
 ### Adicionado

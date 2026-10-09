@@ -1,13 +1,13 @@
 # PetFlow
 
 **SaaS de gestão para pet shops de pequeno porte.**
-Controle de produtos e estoque, vendas e ponto de venda, caixa e financeiro —
-com permissões por perfil, isolamento total entre empresas e trilha de auditoria
-em cada operação.
+Cadastros de clientes e animais, catálogo de serviços, produtos e estoque,
+vendas e ponto de venda, caixa e financeiro — com permissões por perfil,
+isolamento total entre empresas e trilha de auditoria em cada operação.
 
-> **Status:** 4 de 9 etapas concluídas (mais a fundação técnica do projeto).
-> Etapas 1–4 entregues, verificadas e aprovadas em 09/10/2026.
-> Próxima etapa: **Etapa 5 — Clientes, pets e serviços**.
+> **Status:** 5 de 9 etapas concluídas (mais a fundação técnica do projeto).
+> Etapas 1–5 entregues e verificadas em 09/10/2026 (aguardando aprovação).
+> Próxima etapa: **Etapa 6 — Agendamentos** (escopo a definir na abertura).
 > Detalhes em [`docs/operations/PROJECT_STATUS.md`](docs/operations/PROJECT_STATUS.md).
 
 ---
@@ -81,6 +81,23 @@ em cada operação.
   estornos e valor líquido.
 - **PDV bloqueia vendas com o caixa fechado**, com aviso e atalho para abrir.
 
+### Etapa 5 — Clientes, pets e serviços
+
+- **Cadastro de clientes** com busca, endereço completo e contatos
+  normalizados (telefone só dígitos, e-mail em minúsculas) — a criação
+  avisa sobre possível duplicidade sem impedir homônimos ou famílias com
+  o mesmo telefone.
+- **Ficha do cliente com os animais**: responsável, espécie, raça, sexo,
+  nascimento e peso; listagem global de pets com filtros.
+- **Catálogo de serviços** com preço e duração — nome único por empresa
+  e edição restrita ao administrador.
+- **Venda vinculada ao cliente (opcional):** o PDV permite identificar o
+  comprador; sem seleção, a venda rápida continua funcionando e o
+  histórico antigo permanece intacto.
+- **Permissões por natureza do dado:** operação diária (clientes/pets)
+  liberada a qualquer usuário autenticado; preço e catálogo (serviços)
+  restritos ao administrador — sempre verificado no servidor.
+
 ---
 
 ## Roadmap — as 9 etapas
@@ -95,7 +112,8 @@ concluída.
 | **2** | Produtos, categorias, fornecedores e estoque | **Concluída** |
 | **3** | Vendas e ponto de venda (PDV) | **Concluída** |
 | **4** | Caixa e financeiro | **Concluída** |
-| **5** | Clientes, pets e serviços | **Próxima** |
+| **5** | Clientes, pets e serviços | **Concluída** |
+| **6** | Agendamentos | **Próxima** |
 | **6** | Agendamentos | Planejada |
 | **7** | Automação de atendimento no WhatsApp | Planejada |
 | **8** | Dashboard e relatórios gerenciais | Planejada |
@@ -119,13 +137,14 @@ concluída.
 | **Sessões seguras** | Cookie `HttpOnly` com hash SHA-256 no banco; revogação no logout e ao inativar usuários |
 | **Concorrência tratada** | Trava pessimista (`FOR UPDATE`) em ordem fixa: caixa → produtos — vendas simultâneas nunca corrompem saldo |
 
-**Evidências de verificação (Etapa 4):**
+**Evidências de verificação (Etapa 5):**
 
-- `141` testes automatizados em PostgreSQL real — **141 aprovados**
+- `190` testes automatizados em PostgreSQL real — **190 aprovados**
 - `npm run lint` — 0 erros · `npm run typecheck` — 4 workspaces OK
 - `npm run build` — API, web e worker compilando · `npm run db:validate` — schema válido
-- Validação E2E manual — **30/30 verificações** (inclui bloqueio de venda
-  com caixa fechado, concorrência de aberturas e fechamento com diferença)
+- Validação E2E manual — **40/40 verificações** (inclui normalizações,
+  bloqueio de cliente duplicado, venda com cliente e venda rápida sem
+  cliente)
 
 ---
 
@@ -249,4 +268,4 @@ automação do whatsapp/   base existente (preservada, fora do monorepo)
 
 ---
 
-**PetFlow** — 4 de 9 etapas entregues. Próxima: clientes, pets e serviços.
+**PetFlow** — 5 de 9 etapas entregues. Próxima: agendamentos.

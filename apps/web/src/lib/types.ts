@@ -141,6 +141,7 @@ export interface SaleItemDto {
 export interface SaleDto {
   id: string;
   receiptCode: string;
+  clientId: string | null;
   status: SaleStatus;
   subtotal: string;
   discount: string;
@@ -152,6 +153,7 @@ export interface SaleDto {
   cancelReason: string | null;
   createdBy: { id: string; name: string };
   cancelledBy: { id: string; name: string } | null;
+  client: { id: string; name: string } | null;
   items: SaleItemDto[];
 }
 
@@ -245,4 +247,86 @@ export interface CashSummaryDto {
   totalIn: string;
   totalOut: string;
   net: string;
+}
+
+export interface ClientDto {
+  id: string;
+  name: string;
+  phone: string | null;
+  mobile: string | null;
+  email: string | null;
+  cpf: string | null;
+  street: string | null;
+  number: string | null;
+  complement: string | null;
+  district: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  notes: string | null;
+  status: RecordStatus;
+  createdAt: string;
+  updatedAt: string;
+  _count?: { pets: number; sales: number };
+}
+
+export type PetSpecies =
+  | "DOG"
+  | "CAT"
+  | "BIRD"
+  | "RODENT"
+  | "REPTILE"
+  | "FISH"
+  | "OTHER";
+
+export const petSpeciesLabels: Record<PetSpecies, string> = {
+  DOG: "Cachorro",
+  CAT: "Gato",
+  BIRD: "Ave",
+  RODENT: "Roedor",
+  REPTILE: "Réptil",
+  FISH: "Peixe",
+  OTHER: "Outro",
+};
+
+export type PetSex = "MALE" | "FEMALE" | "UNKNOWN";
+
+export const petSexLabels: Record<PetSex, string> = {
+  MALE: "Macho",
+  FEMALE: "Fêmea",
+  UNKNOWN: "Não informado",
+};
+
+export interface PetDto {
+  id: string;
+  clientId: string;
+  name: string;
+  species: PetSpecies;
+  breed: string | null;
+  sex: PetSex;
+  birthDate: string | null;
+  weight: string | null;
+  color: string | null;
+  notes: string | null;
+  status: RecordStatus;
+  createdAt: string;
+  updatedAt: string;
+  client: {
+    id: string;
+    name: string;
+    phone: string | null;
+    mobile: string | null;
+    email: string | null;
+  } | null;
+}
+
+export interface ServiceDto {
+  id: string;
+  name: string;
+  description: string | null;
+  durationMinutes: number | null;
+  price: string;
+  status: RecordStatus;
+  createdAt: string;
+  updatedAt: string;
 }

@@ -10,6 +10,7 @@ import {
   paymentMethodLabels,
   productUnitLabels,
   type CashSessionDto,
+  type ClientDto,
   type Paginated,
   type PaymentMethod,
   type ProductDto,
@@ -47,6 +48,8 @@ export default function PdvPage() {
   const [discount, setDiscount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("CASH");
   const [paymentNote, setPaymentNote] = useState("");
+  const [clients, setClients] = useState<ClientDto[]>([]);
+  const [clientId, setClientId] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [completedSale, setCompletedSale] = useState<SaleDto | null>(null);
@@ -71,6 +74,11 @@ export default function PdvPage() {
     api<CashSessionDto>("/api/cash/sessions/current", { redirectOnUnauthorized: false })
       .then(() => setCashOpen(true))
       .catch((err) => setCashOpen(err instanceof ApiError && err.status === 404 ? false : true));
+    api<Paginated<ClientDto>>("/api/clients?status=ACTIVE&pageSize=100", {
+      redirectOnUnauthorized: false,
+    })
+      .then((data) => setClients(data.items))
+      .catch(() => setClients([]));
   }, [session]);
 
   const searchProducts = useCallback(async (term: string) => {
@@ -203,6 +211,7 @@ export default function PdvPage() {
           discount: discountValue > 0 ? discountValue.toFixed(2) : "0",
           paymentMethod,
           paymentNote: paymentMethod === "OTHER" ? paymentNote.trim() : null,
+          clientId: clientId || null,
           clientRequestId: clientRequestId.current,
         }),
       });
@@ -210,6 +219,7 @@ export default function PdvPage() {
       setCart([]);
       setDiscount("");
       setPaymentNote("");
+      setClientId("");
       clientRequestId.current = newRequest();
     } catch (err) {
       if (err instanceof ApiError && err.message.includes("Caixa fechado")) {
@@ -430,6 +440,24 @@ export default function PdvPage() {
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label htmlFor="pdv-client" className="mb-1 block text-sm text-slate-700">
+                Cliente (opcional)
+              </label>
+              <select
+                id="pdv-client"
+                value={clientId}
+                onChange={(event) => setClientId(event.target.value)}
+                className={inputClass}
+              >
+                <option value="">Venda rápida sem cliente</option>
+                {clients.map((client) => (
+                  <option key={client.id} value={client.id}>
+                    {client.name}
+                  </option>
+                ))}
+              </select>
+            </div>
             <div>
               <label htmlFor="pdv-discount" className="mb-1 block text-sm text-slate-700">
                 Desconto (R$)
