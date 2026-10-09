@@ -87,8 +87,9 @@ resumo/estorno de outra empresa → 404/zero/vazio).
 - `e305d52` docs: registra hashes dos commits e push da etapa 2
 - `912d1c8` feat(etapa-3): implementa vendas e ponto de venda
 - `6ae287d` feat(etapa-4): implementa caixa e financeiro
-- Push confirmado: `2af5ba7..6ae287d main -> main` (após o commit de docs
-  da Etapa 4; árvore de trabalho em sincronia com `origin/main`).
+- `bf2d5a9` docs: registra hash do commit da etapa 4
+- Push confirmado: `2af5ba7..bf2d5a9 main -> main` (árvore de trabalho
+  em sincronia com `origin/main` após a Etapa 4).
 
 ## Próxima etapa autorizada
 
