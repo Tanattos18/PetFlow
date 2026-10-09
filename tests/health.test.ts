@@ -1,22 +1,21 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
-import { NestFactory } from "@nestjs/core";
-import { INestApplication } from "@nestjs/common";
-import { AppModule } from "../apps/api/src/app.module";
-import { AllExceptionsFilter } from "../apps/api/src/common/filters/all-exceptions.filter";
+import { createTestApp } from "./helpers/app";
 
-async function createTestApp(): Promise<INestApplication> {
-  const app = await NestFactory.create(AppModule, { logger: false });
-  app.useGlobalFilters(new AllExceptionsFilter());
-  await app.init();
-  return app;
-}
+let app: INestApplication;
+
+beforeAll(async () => {
+  const created = await createTestApp();
+  app = created.app;
+});
+
+afterAll(async () => {
+  await app.close();
+});
 
 describe("PetFlow API - health check", () => {
-  let app: INestApplication;
-
   it("GET /health retorna status ok", async () => {
-    app = await createTestApp();
     const response = await request(app.getHttpServer()).get("/health");
 
     expect(response.status).toBe(200);
@@ -26,18 +25,13 @@ describe("PetFlow API - health check", () => {
     });
     expect(typeof response.body.timestamp).toBe("string");
     expect(typeof response.body.uptimeSeconds).toBe("number");
-
-    await app.close();
   });
 
   it("GET inexistente retorna 404 tratado", async () => {
-    app = await createTestApp();
     const response = await request(app.getHttpServer()).get("/nao-existe");
 
     expect(response.status).toBe(404);
     expect(response.body).toMatchObject({ statusCode: 404 });
     expect(typeof response.body.timestamp).toBe("string");
-
-    await app.close();
   });
 });

@@ -27,6 +27,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getResponse()
         : "Erro interno não tratado";
 
+    const payload =
+      typeof detail === "string"
+        ? { message: detail }
+        : { ...(detail as Record<string, unknown>) };
+
     if (status >= 500) {
       this.logger.error(
         `${request.method} ${request.url} -> ${status}`,
@@ -36,9 +41,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     response.status(status).json({
       statusCode: status,
-      message: detail,
       timestamp: new Date().toISOString(),
       path: request.url,
+      ...payload,
     });
   }
 }
