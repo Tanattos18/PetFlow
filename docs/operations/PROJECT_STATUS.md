@@ -2,48 +2,69 @@
 
 ## Etapa atual
 
-**Etapa 0 — Criação da base do projeto** — CONCLUÍDA (aguardando aprovação do
-proprietário para avançar).
+**Etapa 2 — Produtos, estoque, fornecedores e movimentações** — CONCLUÍDA
+(aguardando aprovação do proprietário para avançar).
 
 Data: 2026-10-09.
 
-## Entregas concluídas
+Etapas anteriores: Etapa 0 (2026-10-09), Etapa 1 (2026-10-09).
 
-- [x] Inspeção do diretório e do ambiente (Node 24.21.0, npm 11.19.0, sem
-      Docker/PostgreSQL, sem repositório Git prévio).
-- [x] Monorepo com workspaces e estrutura `apps/`, `packages/`, `database/`,
-      `docs/`, `tests/`.
-- [x] API NestJS com health check e tratamento global de erros.
-- [x] Frontend Next.js + Tailwind mínimo (identidade inicial, sem módulos de
-      negócio).
-- [x] Worker stub para futuras tarefas em segundo plano.
-- [x] Schema Prisma técnico + organização de migrations/seeds.
-- [x] Lint, typecheck, build e testes executados com sucesso.
-- [x] Documentação obrigatória criada.
+## Entregas concluídas (Etapa 2)
+
+- [x] Migration `20261009194843_etapa2_products_stock` aplicada em `petflow`
+      (dev) e `petflow_test` (testes); schema validado.
+- [x] Modelos: `Category` (nome único por empresa via `nameKey`),
+      `Supplier`, `Product` (SKU/barcode únicos por empresa quando
+      preenchidos, saldo materializado `Decimal(12,3)`),
+      `StockMovement` (histórico imutável com autor).
+- [x] API: categorias, fornecedores e produtos (CRUD + paginação/busca/
+      filtros) e estoque (entrada, saída, ajuste, saldo, histórico,
+      alertas) — ver `docs/architecture/API.md`.
+- [x] Consistência de estoque: saldo e movimento na mesma transação com
+      lock `FOR UPDATE`; saídas/ajustes que deixariam saldo negativo são
+      rejeitados; concorrência coberta por teste real.
+- [x] Permissões: escrita de catálogo/produtos e ajustes restritos a
+      `ADMIN`; leitura e entradas/saídas liberadas a usuários autenticados;
+      escopo sempre pelo `companyId` da sessão.
+- [x] Frontend: `/produtos` (busca, filtros, paginação, alerta de estoque
+      baixo), detalhe com saldo/histórico/formulários, `/produtos/novo`,
+      `/produtos/[id]/editar`, `/categorias`, `/fornecedores`.
+- [x] Home exibe "Produtos e estoque" como módulo disponível.
 
 ## Testes executados
 
 | Verificação | Comando | Resultado |
 |---|---|---|
-| Schema Prisma válido | `npm run db:validate` | OK (requer `DATABASE_URL` no ambiente) |
+| Schema Prisma válido | `npm run db:validate` | OK |
 | Lint | `npm run lint` | OK (0 erros) |
 | Typecheck | `npm run typecheck` | OK (4 workspaces) |
-| Testes | `npm test` | 2/2 aprovados |
-| Build | `npm run build` | OK (api, web, worker, shared) |
-| API no ar | `GET http://localhost:3001/health` | 200 `{"status":"ok",...}` |
-| Web no ar | `GET http://localhost:3000` | 200, conteúdo PetFlow renderizado |
-| Worker no ar | `npm run dev:worker` | heartbeat registrado no console |
+| Testes (PostgreSQL real) | `npm test` | 76/76 aprovados (6 arquivos) |
+| Build | `npm run build` | OK (shared, api, web, worker) |
+| E2E API | fluxo login→CRUD→movimentações | 200/201/400 conforme esperado |
+| E2E web | `GET /produtos`, `/categorias`, `/fornecedores`, detalhe | 200 |
+
+Cobertura dos testes novos (53): CRUD e validações de catálogo/produtos,
+duplicidade de SKU/barcode/categoria, categoria/fornecedor de outra empresa
+(400/404), entrada/saída/ajuste, saldo negativo bloqueado, justificativa
+obrigatória, quantidade zero/negativa, falha transacional sem efeito,
+concorrência (5 saídas de 3 sobre saldo 5 → exatamente 1 aprovada, saldo
+final 2), histórico com autor/data/tipo/motivo, alertas de estoque baixo,
+autenticação/permissão negadas e isolamento multiempresa.
 
 ## Pendências conhecidas
 
-- Instalar/configurar PostgreSQL quando a etapa de persistência iniciar.
-- Reavaliar integração da pasta `automação do whatsapp/` com o PetFlow em
-  etapa própria (fora do escopo da Etapa 0).
-- Adicionar CI (lint + typecheck + testes) quando solicitado.
-- Definir autenticação e multiempresa (não autorizado nesta etapa).
+- CI (lint + typecheck + testes) quando solicitado.
+- Validação de formato de CPF/CNPJ (hoje apenas texto com limite de
+  tamanho) — avaliar na etapa de clientes/fornecedores avançado.
+- Estoque negativo nunca é permitido por padrão; se houver necessidade
+  futura de venda com saldo insuficiente (backorder), será decisão explícita.
+- Integração da pasta `automação do whatsapp/` em etapa própria.
+
+## Git
+
+- Branch: `main`; remoto: `origin` → `https://github.com/Tanattos18/PetFlow.git`.
+- Commits da Etapa 1 e Etapa 2 (hashes registrados no relatório final).
 
 ## Próxima etapa autorizada
 
-**Etapa 1** — a iniciar somente após aprovação explícita do proprietário.
-Escopo sugerido para proposta: fundação de dados (empresa piloto, usuários,
-autenticação básica) — a ser detalhado e aprovado antes da implementação.
+**Etapa 3** — a iniciar somente após aprovação explícita do proprietário.

@@ -1,7 +1,50 @@
-# Banco de dados — diretrizes (Etapa 0)
+# Banco de dados — diretrizes e modelo atual
 
-Nenhuma tabela de negócio foi criada nesta etapa. Este documento registra as
-diretrizes que orientarão o modelo de dados nas próximas etapas.
+## Modelos implementados (Etapa 2)
+
+Migration: `database/prisma/migrations/20261009194843_etapa2_products_stock`.
+
+| Modelo | Campos principais | Restrições/índices |
+|---|---|---|
+| `Category` | `companyId` (FK), `name`, `nameKey`, `description?`, `status` (enum `RecordStatus`), timestamps | único `(companyId, nameKey)` — `nameKey` = nome em minúsculas para unicidade case-insensitive |
+| `Supplier` | `companyId` (FK), `name`, `document?`, `email?`, `phone?`, `notes?`, `status`, timestamps | índices `(companyId, status)`, `(companyId, name)`; CPF/CNPJ tratado como texto (validação de formato pendente) |
+| `Product` | `companyId` (FK), `categoryId?` (FK `SetNull`), `supplierId?` (FK `SetNull`), `name`, `description?`, `sku?`, `barcode?`, `unit` (enum `ProductUnit`), `costPrice`/`salePrice` `Decimal(12,2)`, `stockQuantity`/`minimumStock` `Decimal(12,3)`, `status`, timestamps | únicos `(companyId, sku)` e `(companyId, barcode)` (NULLs não conflitam no Postgres); índices `(companyId, status)`, `(companyId, name)` |
+| `StockMovement` | `companyId` (FK), `productId` (FK `Restrict`), `type` (enum `StockMovementType`), `quantity` `Decimal(12,3)`, `notes?`, `reference?`, `createdByUserId` (FK `Restrict`), `createdAt` | índices `(companyId, productId, createdAt)`, `(companyId, createdAt)`; sem `updatedAt` — histórico imutável |
+
+Regras derivadas:
+
+- **Saldo materializado** em `Product.stockQuantity`; entrada/saída/ajuste
+  atualizam saldo e criam `StockMovement` na mesma transação, com lock
+  pessimista (`SELECT ... FOR UPDATE`) por produto — movimentações
+  concorrentes não geram saldo negativo ou divergente.
+- Histórico **não editável** por operações comuns: não existem endpoints de
+  update/delete de movimentos; correções são novos movimentos compensatórios.
+- Alerta de estoque baixo: produto `ACTIVE` com `minimumStock > 0` e
+  `stockQuantity <= minimumStock`.
+- Unidades aceitas: `UNIDADE`, `KG`, `G`, `L`, `ML`, `CAIXA`, `PACOTE`,
+  `ROLLO`; quantidades com até 3 casas decimais; preços com até 2, nunca
+  negativos (validados também no Zod compartilhado).
+- SKU é normalizado para maiúsculas; barcode e códigos vazios viram `NULL`.
+- Nenhuma exclusão física de produto com movimentações: apenas inativação.
+
+## Modelos implementados (Etapa 1)
+
+Migration: `database/prisma/migrations/20261009185907_etapa1_auth_tenancy`
+(aplicada em `petflow` e `petflow_test`).
+
+| Modelo | Campos principais | Restrições/índices |
+|---|---|---|
+| `Company` | `id`, `name`, `slug`, `status` (enum), `createdAt`, `updatedAt` | `slug` único |
+| `User` | `id`, `companyId` (FK → `Company`), `name`, `email`, `passwordHash`, `role` (enum `ADMIN`/`STAFF`), `status` (enum `ACTIVE`/`INACTIVE`), timestamps | único `(companyId, email)`; email normalizado (trim+minúsculas) antes da validação; `onDelete: Restrict` |
+| `Session` | `id`, `userId` (FK → `User`), `tokenHash` (SHA-256 do cookie), `expiresAt`, `createdAt` | `tokenHash` único; `userId` com cascade de exclusão lógica via revogação no logout/inativação; índices em `userId` e `expiresAt` |
+
+Regras derivadas:
+
+- Sessões nunca armazenam o token em texto puro; apenas o hash.
+- Inativar usuário (`User.status = INACTIVE`) revoga suas sessões.
+- Bootstrap (`npm run bootstrap:admin`) cria `Company` + `User` ADMIN de forma
+  idempotente (checagem prévia por email/slug), via variáveis `BOOTSTRAP_*`.
+- Nenhuma tabela de negócio fora do escopo da Etapa 1 foi criada.
 
 ## Isolamento multiempresa
 
@@ -11,6 +54,8 @@ diretrizes que orientarão o modelo de dados nas próximas etapas.
   autenticado (middleware/filtro de tenant).
 - Identificadores externos (ex.: telefone no WhatsApp, código de produto) serão
   únicos dentro da empresa, não globalmente.
+- Já implementado em `User`: unicidade de email por empresa e todos os
+  accessos escopados pelo `companyId` da sessão autenticada.
 
 ## Integridade referencial
 

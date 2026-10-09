@@ -11,15 +11,19 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev:api": "npm run dev --workspace @petflow/api",
+    "build:shared": "npm run build --workspace @petflow/shared",
+    "dev:api": "npm run build:shared && npm run dev --workspace @petflow/api",
     "dev:web": "npm run dev --workspace @petflow/web",
     "dev:worker": "npm run dev --workspace @petflow/worker",
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build:shared && npm run build --workspace @petflow/api && npm run build --workspace @petflow/web && npm run build --workspace @petflow/worker",
     "lint": "eslint .",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "vitest run",
+    "typecheck": "npm run build:shared && npm run typecheck --workspace @petflow/api && npm run typecheck --workspace @petflow/web && npm run typecheck --workspace @petflow/worker",
+    "test": "npm run build:shared && vitest run",
+    "bootstrap:admin": "npm run build:shared && npm run bootstrap:admin --workspace @petflow/api",
     "db:validate": "prisma validate --schema database/prisma/schema.prisma",
-    "db:generate": "prisma generate --schema database/prisma/schema.prisma"
+    "db:generate": "prisma generate --schema database/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema database/prisma/schema.prisma",
+    "db:deploy": "prisma migrate deploy --schema database/prisma/schema.prisma"
   },
   "devDependencies": {
     "@eslint/js": "^9.12.0",

@@ -57,3 +57,62 @@ tests/        → testes compartilhados/integração
   de negócio existe ainda); o health reflete status técnico da API.
 - Pasta `automação do whatsapp/` mantida intacta na raiz como base existente de
   automação; será avaliada/integrada em etapa própria (não faz parte da Etapa 0).
+
+## Autenticação, autorização e multiempresa (Etapa 1)
+
+### Estratégia de autenticação (uma única)
+
+- **Sessão server-side com cookie `HttpOnly`**: no login, a API gera um token
+  aleatório (32 bytes), devolve no cookie `petflow_session` (`HttpOnly`,
+  `SameSite=Lax`, `Secure` quando `AUTH_COOKIE_SECURE=true`, `Path=/`) e grava
+  na tabela `Session` apenas o **hash SHA-256** do token, com `expiresAt`.
+- `GET /api/auth/me` e demais rotas privadas resolvem o cookie → hash →
+  sessão ativa → usuário `ACTIVE` → `request.user`/`request.company`.
+- Logout apaga a sessão (revogação efetiva); inativar usuário revoga todas as
+  sessões dele. Nada de JWT, nada de `localStorage`.
+- Senhas: `bcryptjs` com 12 rounds. Nunca em respostas, logs ou seeds.
+- Proteções auxiliares: rate limit de login (5/15min por IP+email, memória),
+  checagem de `Origin` em requisições mutantes, CORS por allowlist
+  (`APP_ORIGINS`), validação Zod na entrada.
+
+### Autorização
+
+- `APP_GUARD` global `AuthGuard` protege tudo; rotas públicas usam o
+  decorador `@Public()` (ex.: `/health`, `POST /auth/login`).
+- `AdminGuard` (em `@Auth()` + `@UseGuards`) exige `role: ADMIN` — verificado
+  no servidor para gestão de usuários.
+
+### Isolamento multiempresa (tenant)
+
+- `companyId` vem **sempre** do contexto autenticado (`request.user.companyId`);
+  nunca é aceito do cliente.
+- Todas as consultas/escritas de usuários filtram por `companyId`; recursos de
+  outra empresa respondem 404 (sem vazar existência).
+- Padrão para módulos futuros: escopo de empresa obrigatório no guard/helper
+  de contexto — novo recurso sem `companyId` não deve ser aceito.
+- Um usuário pertence a exatamente uma empresa nesta etapa.
+
+### Decisões de execução relevantes
+
+- Runtime de dev `tsx` (esbuild) **não** emite `emitDecoratorMetadata`;
+  providers com injeção de construtor usam `@Inject()` explícito (mesmo
+  redundante no build `tsc`) — padrão adotado nos módulos da API.
+- Frontend consome a API via rewrites do Next (`/api/:path*` →
+  `http://localhost:3001/api/...`), mantendo mesmos domínios/cookies.
+
+## Módulo produtos/estoque (Etapa 2)
+
+- **Saldo materializado** em `Product.stockQuantity` (Decimal 12,3), com
+  atualização e criação de movimento na **mesma transação** e lock
+  pessimista por produto (`SELECT ... FOR UPDATE`) — escolhido por
+  consistência sob concorrência e consultas de saldo/barcode rápidas.
+  Alternativa descartada (saldo sempre agregado de movimentos) exigiria
+  índices/GROUP BY por leitura e não simplificava o bloqueio.
+- **Histórico imutável**: `StockMovement` não tem update/delete por
+  operação comum; correções são movimentos compensatórios (ajuste ±).
+- **Permissões**: leitura de catálogo/estoque para qualquer usuário
+  autenticado; escrita de categorias/fornecedores/produtos e ajustes de
+  inventário restrita a `ADMIN` (ver `API.md`).
+- **Alerta de estoque baixo**: `ACTIVE` + `minimumStock > 0` +
+  `stockQuantity <= minimumStock` (produtos sem mínimo definido não geram
+  alerta).

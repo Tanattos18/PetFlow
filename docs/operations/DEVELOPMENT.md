@@ -7,12 +7,11 @@
 | Node.js | 24.21.0 (mínimo 20) | `node -v` |
 | npm | 11.19.0 | workspaces nativos |
 | Git | 2.55 | versionamento |
-| PostgreSQL | não instalado neste ambiente | necessário apenas quando houver persistência; ver abaixo |
+| PostgreSQL | 17 local (serviço `postgresql-x64-17`, porta 5432) | necessário desde a Etapa 1; **sem Docker** neste ambiente |
 
-> O ambiente atual (máquina de desenvolvimento) **não possui Docker nem
-> PostgreSQL instalados**. A Etapa 0 funciona sem banco; quando a Etapa que
-> introduzir persistência chegar, será preciso instalar o PostgreSQL (ex.:
-> instalador oficial, WSL ou Docker Desktop) e criar o banco `petflow`.
+> A Etapa 1 exige PostgreSQL real. Bancos usados: `petflow` (dev) e
+> `petflow_test` (testes). `psql` disponível em
+> `C:\Program Files\PostgreSQL\17\bin`.
 
 ## Instalação
 
@@ -23,12 +22,47 @@ cp .env.example .env    # ajuste as variáveis conforme necessário
 
 O `.env` não é versionado. O `.env.example` contém apenas exemplos não secretos.
 
+### Variáveis de ambiente (Etapa 1)
+
+| Variável | Finalidade |
+|---|---|
+| `DATABASE_URL` | conexão com o PostgreSQL (obrigatória) |
+| `API_PORT` / `WEB_PORT` | portas da API (3001) e do web (3000) |
+| `APP_ORIGINS` | allowlist de CORS (ex.: `http://localhost:3000`) |
+| `AUTH_RATE_LIMIT_MAX` | máximo de tentativas de login (padrão 5/15min) |
+| `AUTH_SESSION_TTL_HOURS` | validade da sessão (padrão 12h) |
+| `AUTH_COOKIE_SECURE` | `true` em produção (cookie `Secure`) |
+| `BOOTSTRAP_COMPANY_NAME`, `BOOTSTRAP_COMPANY_SLUG` | empresa do bootstrap |
+| `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` | primeiro administrador |
+
+### Banco e migrations
+
+```bash
+npm run db:migrate      # aplica migrations pendentes (usa DATABASE_URL)
+npm run db:validate     # valida o schema Prisma
+```
+
+Testes criam/aplicam migrations no banco `petflow_test` automaticamente
+(`tests/global-setup.ts`).
+
+### Bootstrap do primeiro administrador
+
+```bash
+# com as variáveis BOOTSTRAP_* definidas no .env ou no ambiente:
+npm run bootstrap:admin
+```
+
+- Idempotente: não duplica empresa/usuário já existentes.
+- Sem senha padrão: a senha vem de `BOOTSTRAP_ADMIN_PASSWORD` e não é
+  versionada. Recuperação de acesso: reexecutar o comando com as variáveis
+  adequadas ou redefinir a senha via SQL direto no banco.
+
 ## Inicialização (3 terminais)
 
 ```bash
-npm run dev:api      # NestJS em http://localhost:3001
-npm run dev:web      # Next.js em http://localhost:3000
-npm run dev:worker   # worker de background (stub na Etapa 0)
+npm run dev:api      # NestJS em http://localhost:3001 (rota: /api/...)
+npm run dev:web      # Next.js em http://localhost:3000 (proxy /api → 3001)
+npm run dev:worker   # worker de background (stub)
 ```
 
 ## Comandos de verificação
@@ -47,6 +81,17 @@ npm run db:validate  # valida o schema Prisma (requer DATABASE_URL no .env ou no
 curl http://localhost:3001/health
 # {"status":"ok","service":"petflow-api","timestamp":"...","uptimeSeconds":...}
 ```
+
+Observação: o health fica fora do prefixo `/api` por decisão registrada na
+Etapa 1; os demais endpoints ficam em `/api/...`.
+
+## Produtos e estoque (Etapa 2)
+
+- Endpoints, filtros e permissões: `docs/architecture/API.md`.
+- Testes de estoque (incluindo concorrência) rodam no `petflow_test` via
+  `npm test`; a migration é aplicada automaticamente no setup dos testes.
+- Saldo é sempre calculado no servidor (transação + lock); não existe
+  endpoint para "setar" saldo diretamente.
 
 ## Estrutura rápida
 

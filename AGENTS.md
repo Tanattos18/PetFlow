@@ -26,12 +26,34 @@ preservada e não confundida com o código do PetFlow.
    quando as diretrizes mudarem.
 9. **Testes**: rodar `npm run lint`, `npm run typecheck` e `npm test` antes de
    concluir qualquer tarefa; não marcar verificação como concluída sem evidência.
-10. **Documentação**: atualizar `CHANGELOG.md`, `PROJECT_STATUS.md` e
-    `IMPLEMENTATION_CHECKLIST.md` ao final de cada etapa concluída.
+10. **Documentação**: atualizar `docs/operations/CHANGELOG.md`,
+    `docs/operations/PROJECT_STATUS.md` e
+    `docs/operations/IMPLEMENTATION_CHECKLIST.md` ao final de cada etapa
+    concluída.
 11. **Commits**: somente quando solicitado pelo proprietário; mensagem objetiva
     no padrão do repositório.
 12. **Pasta `automação do whatsapp/`**: não modificar sem instrução; não é
     parte do monorepo PetFlow (excluída do lint e do build).
+
+## Padrões permanentes (desde a Etapa 1)
+
+- **`@Inject()` explícito** nos construtores de providers com injeção de
+  dependência na API: o runtime de dev `tsx` (esbuild) não emite
+  `emitDecoratorMetadata`, e sem ele o Nest resolve `undefined`. Ex.:
+  `constructor(@Inject(PrismaService) private readonly prisma: PrismaService)`.
+- Prefixo global da API: `/api` (exceto `/health`); o Next faz proxy por
+  rewrites (`/api/:path*` → `localhost:3001`).
+- Autenticação: cookie `HttpOnly` (`petflow_session`) com token cujo hash
+  SHA-256 fica em `Session`; nunca JWT nem `localStorage`.
+- Escopo de tenant: `companyId` sempre do contexto autenticado
+  (`request.user.companyId`), nunca do cliente; proteger novas rotas com
+  `AuthGuard` global + `@Public()` apenas onde for realmente público.
+- Módulos de negócio (desde a Etapa 2): novos modelos com `companyId` +
+  FK `Restrict` + índices por empresa; leitura individual via
+  `findFirst({ id, companyId })` → 404; saldo/valores críticos sempre
+  calculados no servidor (nunca aceitar do cliente); histórico de
+  movimentações imutável (correção = movimento compensatório). Padrão
+  completo em `docs/architecture/API.md`.
 
 ## Comandos de verificação
 

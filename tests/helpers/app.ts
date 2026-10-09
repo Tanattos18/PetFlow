@@ -1,0 +1,51 @@
+﻿import { INestApplication } from "@nestjs/common";
+import { NestFactory } from "@nestjs/core";
+import cookieParser from "cookie-parser";
+import type request from "supertest";
+import { AppModule } from "../../apps/api/src/app.module";
+import { AllExceptionsFilter } from "../../apps/api/src/common/filters/all-exceptions.filter";
+import { PrismaService } from "../../apps/api/src/prisma/prisma.module";
+
+export async function createTestApp(): Promise<{
+  app: INestApplication;
+  prisma: PrismaService;
+}> {
+  const app = await NestFactory.create(AppModule, { logger: false });
+  app.setGlobalPrefix("api", { exclude: ["health"] });
+  app.use(cookieParser());
+  app.useGlobalFilters(new AllExceptionsFilter());
+  await app.init();
+
+  const prisma = app.get(PrismaService);
+  return { app, prisma };
+}
+
+export async function resetDatabase(prisma: PrismaService): Promise<void> {
+  await prisma.stockMovement.deleteMany();
+  await prisma.product.deleteMany();
+  await prisma.category.deleteMany();
+  await prisma.supplier.deleteMany();
+  await prisma.session.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.company.deleteMany();
+}
+
+export function sessionCookieFrom(response: request.Response): string {
+  const raw = response.headers["set-cookie"];
+  const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  const session = list.find((cookie) => cookie.startsWith("petflow_session="));
+  if (!session) {
+    throw new Error("Cookie de sessÃ£o nÃ£o retornada na resposta");
+  }
+  return session.split(";")[0];
+}
+
+export function clearCookieHeader(response: request.Response): string {
+  const raw = response.headers["set-cookie"];
+  const list = Array.isArray(raw) ? raw : raw ? [raw] : [];
+  const session = list.find((cookie) => cookie.startsWith("petflow_session="));
+  if (!session) {
+    throw new Error("Limpeza de cookie nÃ£o retornada na resposta");
+  }
+  return session.split(";")[0];
+}
