@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel WhatsApp PetShop</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header>
+    <h1>Painel WhatsApp - PetShop</h1>
+    <div id="queue-stats" class="stats"></div>
+  </header>
+
+  <main class="layout">
+    <aside>
+      <section class="panel">
+        <h2>Enviar mensagem</h2>
+        <form id="send-form">
+          <input id="send-to" placeholder="Telefone (5511999999999)" required />
+          <textarea id="send-message" placeholder="Mensagem" required></textarea>
+          <button type="submit">Enviar</button>
+        </form>
+        <div id="send-result"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Contatos</h2>
+        <input id="contact-search" placeholder="Buscar..." />
+        <ul id="contact-list" class="list"></ul>
+      </section>
+    </aside>
+
+    <section class="panel grow">
+      <h2>Conversas</h2>
+      <ul id="conversation-list" class="list"></ul>
+      <div id="messages" class="messages"></div>
+      <form id="reply-form" class="reply-form hidden">
+        <input id="reply-message" placeholder="Responder..." />
+        <button type="submit">Responder</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

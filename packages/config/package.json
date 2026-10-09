@@ -1,0 +1,9 @@
+{
+  "name": "@petflow/config",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Configurações comuns reutilizáveis do PetFlow",
+  "files": [
+    "tsconfig.base.json"
+  ]
+}

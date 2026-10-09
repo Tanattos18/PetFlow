@@ -1,0 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ConversationStatus {
+  OPEN
+  PENDING
+  CLOSED
+}
+
+enum Direction {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model Contact {
+  id         String         @id @default(cuid())
+  phone      String         @unique
+  waId       String?        @unique
+  name       String?
+  petName    String?
+  tags       String[]       @default([])
+  optedOut   Boolean        @default(false)
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  conversations Conversation[]
+  messages      Message[]
+  chatbotStates ChatbotState[]
+}
+
+model Conversation {
+  id         String           @id @default(cuid())
+  contactId  String
+  contact    Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  status     ConversationStatus @default(OPEN)
+  assignedTo String?
+  startedAt  DateTime         @default(now())
+  closedAt   DateTime?
+  messages   Message[]
+
+  @@index([contactId, status])
+}
+
+model Message {
+  id             String        @id @default(cuid())
+  conversationId String?
+  conversation   Conversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  contactId      String
+  contact        Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  direction      Direction
+  type           String        @default("text")
+  content        String
+  waMessageId    String?       @unique
+  status         MessageStatus @default(QUEUED)
+  error          String?
+  createdAt      DateTime      @default(now())
+
+  @@index([contactId, createdAt])
+  @@index([status])
+}
+
+model Flow {
+  id         String   @id @default(cuid())
+  key        String   @unique
+  name       String
+  definition Json
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ChatbotState {
+  id          String   @id @default(cuid())
+  contactId   String
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  flowKey     String
+  currentNode String
+  context     Json     @default("{}")
+  active      Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([contactId, flowKey])
+}

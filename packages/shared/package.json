@@ -1,0 +1,18 @@
+{
+  "name": "@petflow/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tipos e validações compartilhados do PetFlow",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2"
+  }
+}

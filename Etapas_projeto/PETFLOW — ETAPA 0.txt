@@ -1,0 +1,225 @@
+# PETFLOW — ETAPA 0: CRIAÇÃO DA BASE DO PROJETO
+
+## 1. CONTEXTO DO PROJETO
+
+Você está trabalhando no desenvolvimento do PetFlow, um SaaS web de gestão para pet shops de pequeno porte que vendem produtos e oferecem serviços.
+
+O objetivo do produto é centralizar:
+
+- Gestão de produtos e estoque.
+- Vendas e PDV.
+- Caixa e financeiro.
+- Cadastro de clientes e animais.
+- Serviços e agendamentos.
+- Automação pelo WhatsApp.
+- Dashboard e relatórios gerenciais.
+
+O sistema será desenvolvido inicialmente para uma empresa piloto, mas deverá ter arquitetura preparada para atender várias empresas independentes por assinatura.
+
+## 2. OBJETIVO EXCLUSIVO DESTA ETAPA
+
+Nesta etapa, você deverá criar e validar somente a fundação técnica do projeto.
+
+NÃO implemente os módulos de negócio descritos acima.
+
+O resultado esperado é um projeto organizado, documentado, configurado e executável localmente, preparado para receber as próximas etapas.
+
+## 3. REGRAS OBRIGATÓRIAS ANTES DE COMEÇAR
+
+1. Inspecione o diretório atual, os arquivos existentes, o Git, o package.json, as dependências, as configurações e a documentação.
+2. Não sobrescreva, apague ou mova arquivos existentes sem verificar sua finalidade.
+3. Se já houver um projeto iniciado, preserve o que estiver funcionando e adapte a estrutura somente quando necessário.
+4. Não crie outro projeto dentro de uma pasta de projeto já existente.
+5. Não instale dependências desnecessárias.
+6. Não implemente funcionalidades que não estejam expressamente previstas nesta etapa.
+7. Não avance para a implementação de autenticação, estoque, vendas ou qualquer módulo comercial.
+8. Não invente credenciais, tokens, dados de clientes ou configurações de produção.
+9. Caso uma decisão técnica importante não possa ser tomada com segurança, documente a dúvida e solicite minha aprovação.
+10. Ao terminar, apresente um relatório do que foi criado, do que foi preservado e dos testes executados.
+
+## 4. ARQUITETURA PREVISTA
+
+Utilize uma arquitetura web modular, organizada como monorepositório, com frontend e backend separados.
+
+Tecnologias inicialmente previstas:
+
+- Frontend: Next.js e TypeScript.
+- Backend: Node.js e TypeScript, utilizando NestJS ou outra opção justificada e aprovada.
+- Banco de dados: PostgreSQL.
+- ORM: Prisma ou Drizzle, escolhendo apenas um.
+- Estilização: Tailwind CSS.
+- Validação: biblioteca compartilhada ou estratégia consistente entre frontend e backend.
+- Testes: ferramentas compatíveis com a stack escolhida.
+
+Não introduza Redis, microsserviços, Kubernetes, múltiplos bancos ou outras infraestruturas sem necessidade comprovada.
+
+Antes de instalar dependências, verifique as versões de Node.js, npm e as ferramentas disponíveis no ambiente.
+
+Se uma tecnologia precisar ser substituída por incompatibilidade ou restrição técnica, explique a justificativa antes de alterar a arquitetura.
+
+## 5. ESTRUTURA DE PASTAS
+
+Prepare a seguinte estrutura como referência, adaptando-a quando necessário:
+
+petflow/
+├── apps/
+│   ├── web/
+│   ├── api/
+│   └── worker/
+├── packages/
+│   ├── shared/
+│   └── config/
+├── database/
+│   ├── migrations/
+│   └── seeds/
+├── docs/
+│   ├── requirements/
+│   ├── architecture/
+│   └── operations/
+├── tests/
+├── .env.example
+├── .gitignore
+├── README.md
+└── package.json
+
+Responsabilidades:
+
+- apps/web: interface web e experiência do usuário.
+- apps/api: endpoints, regras de negócio e integrações de backend.
+- apps/worker: estrutura para futuras tarefas em segundo plano.
+- packages/shared: tipos e validações realmente compartilhados.
+- packages/config: configurações comuns reutilizáveis.
+- database: organização das migrations e seeds, compatível com o ORM escolhido.
+- docs: documentação funcional, técnica e operacional.
+- tests: testes compartilhados ou de integração, sem duplicar a estrutura de testes própria de cada aplicação quando isso não for necessário.
+
+Não crie arquivos vazios sem finalidade. Caso a ferramenta ou o framework exija uma estrutura diferente, documente a decisão.
+
+## 6. CONFIGURAÇÃO DO AMBIENTE
+
+Prepare:
+
+- Scripts de desenvolvimento, build, lint e testes.
+- Configuração de TypeScript.
+- Configuração do gerenciador de pacotes e versões compatíveis.
+- Arquivos de ambiente de exemplo.
+- .gitignore adequado.
+- Instruções para iniciar o projeto localmente.
+- Configuração básica de logs e tratamento de erros.
+- Health check técnico da API, se compatível com a estrutura criada.
+
+O arquivo .env.example deve conter apenas nomes de variáveis e exemplos não secretos.
+
+Nunca grave senhas reais, tokens, chaves de API ou credenciais no código, no Git ou na documentação.
+
+Não presuma que um banco PostgreSQL já esteja instalado ou acessível. Verifique o ambiente e documente como configurá-lo.
+
+## 7. DOCUMENTAÇÃO OBRIGATÓRIA
+
+Crie ou atualize os documentos abaixo:
+
+### docs/requirements/PRD.md
+Descreva a visão do PetFlow, o público-alvo, os objetivos, os módulos planejados e os limites do MVP.
+
+### docs/architecture/ARCHITECTURE.md
+Documente as tecnologias escolhidas, a separação entre frontend e backend, as responsabilidades de cada aplicação e as regras de evolução arquitetural.
+
+### docs/architecture/DATABASE.md
+Registre as diretrizes para o futuro modelo de dados, incluindo isolamento multiempresa, integridade referencial, histórico de movimentações e tratamento de valores monetários.
+
+Nesta etapa, documente as diretrizes. Não crie todas as tabelas de negócio.
+
+### docs/operations/DEVELOPMENT.md
+Explique os pré-requisitos, a instalação, a configuração do ambiente, a inicialização e os comandos de verificação.
+
+### docs/operations/CHANGELOG.md
+Registre as alterações realizadas em cada etapa do projeto, sem apagar o histórico anterior.
+
+### docs/operations/PROJECT_STATUS.md
+Registre a etapa atual, as entregas concluídas, os testes executados, as pendências e a próxima etapa autorizada.
+
+### docs/operations/IMPLEMENTATION_CHECKLIST.md
+Crie o checklist geral de todas as etapas do PetFlow. Utilize caixas de seleção Markdown e mantenha as etapas futuras pendentes.
+
+### AGENTS.md
+Crie instruções permanentes para agentes de desenvolvimento que atuarem neste repositório. Inclua as regras de escopo, inspeção prévia, preservação de arquivos, prevenção de duplicações, testes e atualização da documentação.
+
+Se já existir um AGENTS.md com instruções válidas, revise-o e complemente-o sem eliminar regras importantes.
+
+## 8. PADRÃO DE DESENVOLVIMENTO
+
+Adote as seguintes diretrizes:
+
+- Código organizado por responsabilidade.
+- Nomes claros e consistentes.
+- Tipagem forte com TypeScript.
+- Tratamento explícito de erros.
+- Configurações sensíveis exclusivamente por variáveis de ambiente.
+- Componentes e funções reutilizáveis quando houver necessidade real.
+- Dependências mínimas e justificadas.
+- Documentação das decisões arquiteturais relevantes.
+
+Não crie antecipadamente componentes, serviços, endpoints, tabelas ou interfaces para módulos ainda não implementados.
+
+## 9. DESIGN E INTERFACE
+
+Nesta etapa, prepare somente a estrutura mínima da aplicação web para verificar que o frontend funciona.
+
+Utilize uma identidade visual inicial profissional, adequada a um SaaS de gestão pet, com navegação e apresentação simples.
+
+Não desenvolva telas completas de estoque, caixa, vendas, clientes ou dashboard.
+
+Não crie botões sem funcionalidade como se estivessem prontos para uso.
+
+## 10. TESTES E CRITÉRIOS DE ACEITE
+
+Antes de concluir, verifique:
+
+- A estrutura de diretórios está coerente.
+- Frontend e backend estão separados.
+- As dependências e scripts estão documentados.
+- O frontend inicia localmente.
+- A API inicia localmente.
+- O health check funciona, se implementado.
+- A compilação e as verificações de tipos passam.
+- Lint e testes disponíveis são executados.
+- Não existem segredos reais nos arquivos criados.
+- A documentação corresponde ao estado real do projeto.
+- O checklist geral foi criado e está atualizado.
+- Nenhum módulo de negócio foi implementado antecipadamente.
+
+Se algum teste não puder ser executado, informe o motivo. Não marque uma verificação como concluída sem evidência.
+
+## 11. RESTRIÇÕES DE ESCOPO
+
+É PROIBIDO nesta etapa:
+
+- Implementar cadastro funcional de produtos.
+- Implementar estoque.
+- Implementar vendas ou PDV.
+- Implementar caixa ou financeiro.
+- Implementar cadastro funcional de clientes e animais.
+- Implementar agenda de serviços.
+- Implementar integração real com WhatsApp.
+- Implementar assinaturas ou cobrança.
+- Implementar funcionalidades de IA.
+- Implementar emissão fiscal.
+- Criar dados fictícios de produção.
+- Avançar automaticamente para a próxima etapa.
+
+## 12. RELATÓRIO FINAL OBRIGATÓRIO
+
+Ao concluir, apresente:
+
+1. Estrutura final de pastas.
+2. Tecnologias e versões utilizadas.
+3. Arquivos criados e arquivos preexistentes alterados.
+4. Dependências instaladas e justificativas.
+5. Comandos necessários para iniciar o projeto.
+6. Testes executados e respectivos resultados.
+7. Pendências e limitações conhecidas.
+8. Confirmação de que nenhum módulo comercial foi implementado.
+9. Atualização do PROJECT_STATUS.md e do IMPLEMENTATION_CHECKLIST.md.
+10. Indicação da próxima etapa planejada, sem executá-la.
+
+Execute somente a Etapa 0. Pare ao final e aguarde minha autorização explícita antes de começar a Etapa 1.

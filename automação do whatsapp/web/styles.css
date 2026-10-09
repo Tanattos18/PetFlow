@@ -1,0 +1,102 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #f4f6f8;
+  color: #1f2937;
+}
+
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #0f766e;
+  color: #fff;
+}
+
+header h1 { font-size: 18px; }
+
+.stats { font-size: 13px; display: flex; gap: 14px; }
+
+.layout {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  padding: 16px 24px;
+}
+
+.panel {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.panel.grow { margin-bottom: 0; }
+
+h2 { font-size: 14px; text-transform: uppercase; color: #6b7280; margin-bottom: 12px; }
+
+input, textarea, button {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+textarea { min-height: 70px; resize: vertical; }
+
+button {
+  background: #0f766e;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover { background: #115e59; }
+
+.list { list-style: none; max-height: 260px; overflow-y: auto; }
+
+.list li {
+  padding: 8px;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.list li:hover { background: #f9fafb; }
+.list li.active { background: #ccfbf1; }
+
+.messages {
+  min-height: 200px;
+  max-height: 400px;
+  overflow-y: auto;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bubble {
+  max-width: 70%;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.bubble.in { background: #f3f4f6; align-self: flex-start; }
+.bubble.out { background: #ccfbf1; align-self: flex-end; }
+.bubble .meta { font-size: 11px; color: #6b7280; margin-top: 4px; }
+
+.reply-form { display: flex; gap: 8px; margin-top: 12px; }
+.reply-form input { margin-bottom: 0; }
+.reply-form button { width: auto; margin-bottom: 0; }
+
+.hidden { display: none; }
+
+#send-result { font-size: 13px; color: #0f766e; }
