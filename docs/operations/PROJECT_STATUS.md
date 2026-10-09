@@ -99,8 +99,8 @@ outra empresa e cliente inativo rejeitados).
 - `bf2d5a9` docs: registra hash do commit da etapa 4
 - `398ad85` docs: registra push da etapa 4
 - `59ef5a2` docs: reescreve README com roadmap das 9 etapas
-- Push confirmado até `59ef5a2` antes da Etapa 5; hash do commit da
-  Etapa 5 registrado nesta seção após o push.
+- `9d273b9` feat(etapa-5): implementa clientes, pets e serviços
+- Push confirmado: `2af5ba7..9d273b9 main -> main` (inclui a Etapa 5).
 
 ## Próxima etapa autorizada
 
