@@ -207,6 +207,7 @@ com auto-login e login em seguida, slug único, 409 e-mail duplicado,
 - `7e7c1bb` feat(etapa-9): implementa assinaturas de clientes e billing do saas
 - `a25f533` docs: registra hash do commit da etapa 9
 - `d42d8c0` feat: adiciona redefinicao de senha pelo painel e guia de uso no readme
+- `69b2c3a` feat: adiciona cadastro aberto de contas e seed de demonstracao
 - Push confirmado: `fcd468b..a25f533 main -> main` (inclui a Etapa 9).
 - Push anterior: `671b3d6..fcd468b main -> main` (inclui a Etapa 8).
 
