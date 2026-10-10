@@ -123,6 +123,7 @@ inválido).
 - `59ef5a2` docs: reescreve README com roadmap das 9 etapas
 - `9d273b9` feat(etapa-5): implementa clientes, pets e serviços
 - `e7bfd34` docs: registra hash do commit da etapa 5
+- `f81db3c` feat(etapa-6): integra WhatsApp Cloud API com fila, webhook e frontend
 - Push confirmado: `2af5ba7..9d273b9 main -> main` (inclui a Etapa 5).
 
 ## Próxima etapa autorizada
