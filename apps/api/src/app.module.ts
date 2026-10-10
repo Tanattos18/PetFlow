@@ -13,6 +13,7 @@ import { CashModule } from "./cash/cash.module";
 import { ClientsModule } from "./clients/clients.module";
 import { PetsModule } from "./pets/pets.module";
 import { ServicesModule } from "./services/services.module";
+import { WhatsAppModule } from "./whatsapp/whatsapp.module";
 import { AuthGuard } from "./common/guards/auth.guard";
 
 @Module({
@@ -29,6 +30,7 @@ import { AuthGuard } from "./common/guards/auth.guard";
     ClientsModule,
     PetsModule,
     ServicesModule,
+    WhatsAppModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: AuthGuard }],

@@ -10,7 +10,7 @@ export async function createTestApp(): Promise<{
   app: INestApplication;
   prisma: PrismaService;
 }> {
-  const app = await NestFactory.create(AppModule, { logger: false });
+  const app = await NestFactory.create(AppModule, { logger: false, rawBody: true });
   app.setGlobalPrefix("api", { exclude: ["health"] });
   app.use(cookieParser());
   app.useGlobalFilters(new AllExceptionsFilter());
@@ -21,6 +21,12 @@ export async function createTestApp(): Promise<{
 }
 
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
+  await prisma.whatsAppWebhookEvent.deleteMany();
+  await prisma.whatsAppMessageAttempt.deleteMany();
+  await prisma.whatsAppMessage.deleteMany();
+  await prisma.whatsAppConsent.deleteMany();
+  await prisma.whatsAppTemplate.deleteMany();
+  await prisma.whatsAppConfig.deleteMany();
   await prisma.cashMovement.deleteMany();
   await prisma.saleItem.deleteMany();
   await prisma.sale.deleteMany();

@@ -201,16 +201,61 @@ Escopo definido em `Etapas_projeto/PetFlow_Prompt_OpenCode_Etapa_2.md`.
       ARCHITECTURE, DEVELOPMENT, README)
 - [x] Commit e push (ver relatório final / PROJECT_STATUS)
 
+## Etapa 6 — Integração com WhatsApp (2026-10-09)
+
+Escopo definido em `Etapas_projeto/PetFlow_Prompt_OpenCode_Etapa_6.md`.
+
+- [x] Etapa 5 confirmada funcional (190/190 testes antes de iniciar;
+      auditoria de lint/typecheck/build/db:validate sem problemas)
+- [x] Decisões registradas: Cloud API oficial da Meta (nada de
+      scraping/Selenium/QR); fila em Postgres no `apps/worker` (sem
+      Redis/BullMQ); dashboard continua Etapa 7; `automação do whatsapp/`
+      intocada
+- [x] Schema: `WhatsAppConfig`, `WhatsAppTemplate`,
+      `WhatsAppConsent`, `WhatsAppMessage`, `WhatsAppSendAttempt`,
+      `WhatsAppWebhookEvent` + 8 enums; migration
+      `20261009232055_etapa6_whatsapp_integration` aplicada em
+      `petflow` e `petflow_test`; `npm run db:validate` OK
+- [x] Pacote `@petflow/whatsapp`: E.164, classificação de erro
+      (TRANSIENT 429/408/5xx), backoff exponencial, opt-out textual,
+      `MetaCloudProvider` + `MockWhatsAppProvider`
+- [x] Schemas Zod E6 em `@petflow/shared` (+ regex de linguagem
+      corrigido para `pt_BR` com underscore)
+- [x] `GET/PUT /api/whatsapp/config`, `POST /whatsapp/config/health`
+      (sem vazar token), `PATCH /whatsapp/config/status` (ADMIN)
+- [x] `GET/POST /api/whatsapp/templates`, `PATCH /:id/approval`,
+      `PATCH /:id/status` (escrita ADMIN; variáveis validadas)
+- [x] `GET/POST /api/whatsapp/consents`,
+      `GET/PUT /whatsapp/consents/:clientId` (opt-in ADMIN, opt-out
+      auditável, 404 cross-tenant)
+- [x] `GET/POST /api/whatsapp/messages` (enfileiramento idempotente),
+      `GET /whatsapp/messages/:id`, `POST /:id/cancel`
+- [x] Webhook Meta (`@Public`): challenge GET, `POST` com
+      verificação `x-hub-signature-256` sobre `rawBody` (403 inválido),
+      idempotência por `wamid`, status de entrega, "SAIR" → opt-out
+- [x] Worker: claim atômico, backoff, `MAX_ATTEMPTS=3`, rate limit por
+      ciclo, heartbeat e shutdown gracioso; envs `WORKER_*`/`WHATSAPP_*`
+- [x] Frontend: `/whatsapp`, `/whatsapp/templates`,
+      `/whatsapp/mensagens`, `/whatsapp/mensagens/[id]`, seção de
+      consentimento em `/clientes/[id]`, card na home, badge "Etapa 6"
+- [x] Testes: 251/251 aprovados em PostgreSQL real (61 novos em
+      `tests/whatsapp.test.ts`)
+- [x] `npm run lint`, `npm run typecheck`, `npm run build`,
+      `npm run db:validate` OK
+- [x] Documentação atualizada (CHANGELOG, STATUS, DATABASE, API,
+      ARCHITECTURE, DEVELOPMENT, README, `.env.example`)
+- [x] Commit e push (ver relatório final / PROJECT_STATUS)
+
 ## Etapas futuras — módulos de negócio
 
 - [x] Cadastro de clientes e animais (Etapa 5)
 - [x] Produtos e estoque (Etapa 2)
 - [x] Vendas e PDV (Etapa 3)
 - [x] Caixa e financeiro (Etapa 4)
-- [ ] Catálogo de serviços está pronto (Etapa 5); agendamentos na Etapa 6
-- [ ] Automação WhatsApp
-- [ ] Dashboard e relatórios
-- [ ] Assinaturas/multiempresa comercial
+- [x] Automação WhatsApp (Etapa 6 — Cloud API + fila + webhook + UI)
+- [ ] Catálogo de serviços está pronto (Etapa 5); agendamentos na Etapa 8
+- [ ] Dashboard e relatórios (Etapa 7 — próxima)
+- [ ] Assinaturas/multiempresa comercial (Etapa 9)
 
 > Regra: nenhuma etapa é iniciada sem autorização explícita; marcar itens aqui
 > apenas com evidência de execução.

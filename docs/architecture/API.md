@@ -222,6 +222,49 @@ Comportamentos importantes:
   (`"80.00"`); nome duplicado na empresa → **409** `"Já existe um
   serviço com este nome nesta empresa"`.
 
+## WhatsApp (Etapa 6)
+
+Integração com a **WhatsApp Business Cloud API** (Meta). Webhook é o
+único endpoint público desta seção; demais exigem sessão.
+
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| GET | `/api/whatsapp/config` | sessão | Configuração da empresa (credenciais **nunca** retornadas; só flag `hasAccessToken`) |
+| PUT | `/api/whatsapp/config` | ADMIN | Salva `phoneNumberId`, `wabaId`, `displayName` |
+| POST | `/api/whatsapp/config/health` | ADMIN | Testa credencial com o provedor (token sanitizado no erro) |
+| PATCH | `/api/whatsapp/config/status` | ADMIN | `ACTIVE`/`DISCONNECTED` (desconectar bloqueia envios) |
+| GET | `/api/whatsapp/templates` | sessão | Lista templates da empresa (filtros `status`, `search`) |
+| POST | `/api/whatsapp/templates` | ADMIN | Cria template (`variablesCount` derivado do corpo) |
+| PATCH | `/api/whatsapp/templates/:id/approval` | ADMIN | `APPROVED`/`REJECTED` (aprovação interna) |
+| PATCH | `/api/whatsapp/templates/:id/status` | ADMIN | `PENDING`/`DISABLED` |
+| GET | `/api/whatsapp/consents` | sessão | Lista consentimentos (filtros `status`, `search`) |
+| POST | `/api/whatsapp/consents` | ADMIN | Registra/atualiza consentimento por telefone+cliente |
+| GET | `/api/whatsapp/consents/:clientId` | sessão | Consentimento do cliente; sem registro → **404** |
+| PUT | `/api/whatsapp/consents/:clientId` | ADMIN (opt-in) / sessão (opt-out) | `{ status, source }` — descadastro liberado a qualquer sessão |
+| GET | `/api/whatsapp/messages` | sessão | Fila/histórico; filtros `status`, `search`, `page`, `pageSize` |
+| POST | `/api/whatsapp/messages` | sessão | Enfileira (`clientId`, `templateId`, `variables`, `clientRequestId`) |
+| GET | `/api/whatsapp/messages/:id` | sessão | Detalhe com template + tentativas |
+| POST | `/api/whatsapp/messages/:id/cancel` | sessão | Cancela `PENDING`/`RETRY` (já em andamento → 409) |
+| GET | `/api/whatsapp/webhook` | **público** | Verificação Meta (query `hub.*`) → challenge `text/plain` |
+| POST | `/api/whatsapp/webhook` | **público** | Eventos Meta; exige `x-hub-signature-256` válido → 403 se inválido |
+
+Comportamentos importantes:
+
+- **Enfileirar ≠ entregar**: `POST /messages` valida no servidor
+  cliente `ACTIVE` da empresa, template `APPROVED`, consentimento
+  `OPTED_IN` e variáveis contra `templateVariableCount()`, e grava
+  `PENDING`; o envio real é do worker (ver `ARCHITECTURE.md`).
+- Idempotência: `clientRequestId` único por empresa — repetição retorna
+  a mesma mensagem (sem duplicar fila).
+- Webhook: verificação `HMAC-SHA256` com `WHATSAPP_APP_SECRET` sobre o
+  **corpo bruto** (`rawBody`); eventos idempotentes por `wamid`+tipo;
+  resposta de texto `"SAIR"` → opt-out (`source = REPLY`).
+- Erros do provedor classificados server-side: 429/408/5xx =
+  TRANSIENT (worker reagenda com backoff); demais = PERMANENT (falha
+  imediata, `attemptCount` nunca passa de `maxAttempts` = 3).
+- Recurso de outra empresa → 404; token/access token aparecem apenas em
+  configuração local (`.env`), nunca em resposta ou log.
+
 ## Padrão para módulos futuros
 
 1. Modelo sempre com `companyId` + FK `Restrict` e índices por empresa.

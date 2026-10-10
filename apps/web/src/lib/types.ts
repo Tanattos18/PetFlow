@@ -330,3 +330,176 @@ export interface ServiceDto {
   createdAt: string;
   updatedAt: string;
 }
+
+// ---------------------------------------------------------------------------
+// Etapa 6 — integração com WhatsApp
+// ---------------------------------------------------------------------------
+
+export type WhatsAppConfigStatus =
+  | "NOT_CONFIGURED"
+  | "CONFIGURED"
+  | "ACTIVE"
+  | "ERROR"
+  | "DISCONNECTED";
+
+export const whatsappConfigStatusLabels: Record<WhatsAppConfigStatus, string> = {
+  NOT_CONFIGURED: "Não configurado",
+  CONFIGURED: "Configurado",
+  ACTIVE: "Ativo",
+  ERROR: "Erro",
+  DISCONNECTED: "Desconectado",
+};
+
+export interface WhatsAppConfigDto {
+  status: WhatsAppConfigStatus;
+  phoneNumberId: string | null;
+  wabaId: string | null;
+  displayName: string | null;
+  lastError: string | null;
+  lastHealthAt: string | null;
+  updatedAt: string | null;
+  provider: { provider: "mock" | "meta"; credentialsConfigured: boolean };
+  webhook: {
+    path: string;
+    verifyConfigured: boolean;
+    signatureConfigured: boolean;
+  };
+}
+
+export interface WhatsAppHealthResult {
+  ok: boolean;
+  status: WhatsAppConfigStatus;
+  verifiedName?: string | null;
+  displayPhoneNumber?: string | null;
+  lastHealthAt?: string | null;
+  message?: string;
+}
+
+export type WhatsAppTemplateCategory = "UTILITY" | "MARKETING" | "AUTHENTICATION";
+export type WhatsAppTemplateApproval = "PENDING_APPROVAL" | "APPROVED" | "REJECTED";
+
+export const whatsappTemplateCategoryLabels: Record<WhatsAppTemplateCategory, string> = {
+  UTILITY: "Utilidade",
+  MARKETING: "Marketing",
+  AUTHENTICATION: "Autenticação",
+};
+
+export const whatsappTemplateApprovalLabels: Record<WhatsAppTemplateApproval, string> = {
+  PENDING_APPROVAL: "Aguardando aprovação",
+  APPROVED: "Aprovado",
+  REJECTED: "Rejeitado",
+};
+
+export interface WhatsAppTemplateDto {
+  id: string;
+  name: string;
+  language: string;
+  category: WhatsAppTemplateCategory;
+  body: string;
+  providerReference: string | null;
+  approval: WhatsAppTemplateApproval;
+  status: RecordStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type WhatsAppConsentStatus = "OPTED_IN" | "OPTED_OUT";
+export type WhatsAppConsentSource = "MANUAL" | "REPLY" | "IMPORT";
+
+export const whatsappConsentStatusLabels: Record<WhatsAppConsentStatus, string> = {
+  OPTED_IN: "Com consentimento",
+  OPTED_OUT: "Descadastrado",
+};
+
+export const whatsappConsentSourceLabels: Record<WhatsAppConsentSource, string> = {
+  MANUAL: "Registro manual",
+  REPLY: "Resposta no WhatsApp",
+  IMPORT: "Importação",
+};
+
+export interface WhatsAppConsentDto {
+  id: string;
+  clientId: string;
+  status: WhatsAppConsentStatus;
+  source: WhatsAppConsentSource;
+  phone: string | null;
+  notes: string | null;
+  changedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  client: {
+    id: string;
+    name: string;
+    phone: string | null;
+    mobile: string | null;
+    status: RecordStatus;
+  } | null;
+}
+
+export type WhatsAppMessageStatus =
+  | "PENDING"
+  | "PROCESSING"
+  | "ACCEPTED"
+  | "SENT"
+  | "DELIVERED"
+  | "READ"
+  | "FAILED"
+  | "CANCELLED";
+
+export const whatsappMessageStatusLabels: Record<WhatsAppMessageStatus, string> = {
+  PENDING: "Pendente",
+  PROCESSING: "Processando",
+  ACCEPTED: "Aceita pelo provedor",
+  SENT: "Enviada",
+  DELIVERED: "Entregue",
+  READ: "Lida",
+  FAILED: "Falha",
+  CANCELLED: "Cancelada",
+};
+
+export type WhatsAppMessageOrigin = "MANUAL" | "SERVICE_REMINDER";
+
+export const whatsappMessageOriginLabels: Record<WhatsAppMessageOrigin, string> = {
+  MANUAL: "Manual",
+  SERVICE_REMINDER: "Lembrete de serviço",
+};
+
+export interface WhatsAppMessageAttemptDto {
+  id: string;
+  attemptNumber: number;
+  outcome: string;
+  providerMessageId: string | null;
+  errorCode: string | null;
+  errorMessage: string | null;
+  httpStatus: number | null;
+  startedAt: string;
+  finishedAt: string;
+}
+
+export interface WhatsAppMessageDto {
+  id: string;
+  clientId: string;
+  templateId: string;
+  toPhone: string;
+  variables: string[];
+  templateNameSnapshot: string;
+  templateLanguageSnapshot: string;
+  templateBodySnapshot: string;
+  status: WhatsAppMessageStatus;
+  origin: WhatsAppMessageOrigin;
+  attempts: number;
+  maxAttempts: number;
+  nextAttemptAt: string | null;
+  lastAttemptAt: string | null;
+  providerMessageId: string | null;
+  failureReason: string | null;
+  failureDetail: string | null;
+  idempotencyKey: string | null;
+  cancelReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  client: { id: string; name: string } | null;
+  template: { id: string; name: string; approval: WhatsAppTemplateApproval; status: RecordStatus } | null;
+  createdBy: { id: string; name: string } | null;
+  attemptsLog?: WhatsAppMessageAttemptDto[];
+}

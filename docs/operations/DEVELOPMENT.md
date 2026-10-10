@@ -35,6 +35,20 @@ O `.env` não é versionado. O `.env.example` contém apenas exemplos não secre
 | `BOOTSTRAP_COMPANY_NAME`, `BOOTSTRAP_COMPANY_SLUG` | empresa do bootstrap |
 | `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` | primeiro administrador |
 
+### Variáveis de ambiente (Etapa 6 — WhatsApp)
+
+| Variável | Finalidade |
+|---|---|
+| `WHATSAPP_PROVIDER` | `meta` (Cloud API) ou `mock` (padrão em dev/teste) |
+| `WHATSAPP_ACCESS_TOKEN` | token de acesso da Meta (segredo — só `.env`) |
+| `WHATSAPP_VERIFY_TOKEN` | token de verificação do webhook (segredo) |
+| `WHATSAPP_APP_SECRET` | segredo do app p/ validar `x-hub-signature-256` (segredo) |
+| `WHATSAPP_API_VERSION` | versão da Graph API (padrão `v21.0`) |
+| `WHATSAPP_COUNTRY_CODE` | prefixo E.164 para números sem código do país (padrão `55`) |
+| `WORKER_POLL_INTERVAL_MS` | intervalo do poll da fila (padrão 5000) |
+| `WHATSAPP_SEND_MAX_PER_CYCLE` | máx. de envios por ciclo do worker (padrão 20) |
+| `WHATSAPP_SEND_INTERVAL_MS` | pausa entre envios no worker (padrão 250) |
+
 ### Banco e migrations
 
 ```bash
@@ -62,7 +76,7 @@ npm run bootstrap:admin
 ```bash
 npm run dev:api      # NestJS em http://localhost:3001 (rota: /api/...)
 npm run dev:web      # Next.js em http://localhost:3000 (proxy /api → 3001)
-npm run dev:worker   # worker de background (stub)
+npm run dev:worker   # worker: processa a fila de envios do WhatsApp (Etapa 6)
 ```
 
 ## Comandos de verificação
@@ -132,6 +146,25 @@ Etapa 1; os demais endpoints ficam em `/api/...`.
 - Testes novos em `tests/clients.test.ts`, `tests/pets.test.ts`,
   `tests/services.test.ts` (+ casos em `tests/sales.test.ts`) rodam no
   `petflow_test` via `npm test`; a migration é aplicada no setup.
+
+## WhatsApp (Etapa 6)
+
+- Endpoints, payloads e permissões: `docs/architecture/API.md`.
+- Provedor padrão em dev/teste é `mock` (`WHATSAPP_PROVIDER=mock`);
+  para falar com a Meta real, preencha no `.env` local
+  `WHATSAPP_PROVIDER=meta` + `WHATSAPP_ACCESS_TOKEN`,
+  `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET` (e configure a
+  empresa em `/whatsapp`). **Nunca** commite esses valores.
+- Webhook Meta (`GET/POST /api/whatsapp/webhook`): em dev local exige
+  túnel público (ngrok/etc.) apontando para a API; a assinatura
+  `x-hub-signature-256` é validada sobre o corpo bruto (`rawBody`).
+- Worker: `npm run dev:worker` processa a fila (poll
+  `WORKER_POLL_INTERVAL_MS`, até `WHATSAPP_SEND_MAX_PER_CYCLE`
+  envios/ciclo com `WHATSAPP_SEND_INTERVAL_MS` entre eles). Sem
+  worker rodando, mensagens ficam `PENDING` (comportamento esperado).
+- Testes novos em `tests/whatsapp.test.ts` (provedor mock
+  determinístico) rodam no `petflow_test` via `npm test`; a migration
+  é aplicada no setup.
 
 ## Estrutura rápida
 

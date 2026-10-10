@@ -2,6 +2,113 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Etapa 6] — 2026-10-09 — Integração com WhatsApp
+
+### Adicionado
+
+- **Escopo**: integração com a **WhatsApp Business Cloud API** (Meta) como
+  camada de provedor de mensagens — sem scraping, Selenium ou QR code;
+  fila de envio em PostgreSQL processada pelo `apps/worker` (sem
+  Redis/BullMQ); a pasta `automação do whatsapp/` permanece intocada.
+- Schema Prisma: enums `WhatsAppConfigStatus`, `WhatsAppTemplateStatus`,
+  `WhatsAppTemplateCategory`, `WhatsAppConsentStatus`,
+  `WhatsAppConsentSource`, `WhatsAppMessageStatus`,
+  `WhatsAppMessageOrigin`, `WhatsAppAttemptResult` + modelos
+  `WhatsAppConfig`, `WhatsAppTemplate`, `WhatsAppConsent`,
+  `WhatsAppMessage`, `WhatsAppSendAttempt`, `WhatsAppWebhookEvent`
+  (todos com `companyId` + índices multiempresa; FKs `Restrict`);
+  migration `20261009232055_etapa6_whatsapp_integration` aplicada em
+  `petflow` e `petflow_test`; `npm run db:validate` OK.
+- Pacote `packages/whatsapp` (`@petflow/whatsapp`):
+  `phone.ts` (`toE164`, `isE164` com validação E.164), `errors.ts`
+  (`WhatsAppProviderError`, `classifyHttpStatus` — 429/408/5xx =
+  TRANSIENT, `nextBackoffMs` com backoff exponencial 5s·2^n (cap 300s),
+  `isOptOutText` para palavras de descadastro), `provider.ts`
+  (`MetaCloudProvider` com injeção de `fetchImpl`, headers de assinatura
+  e scrub de credenciais em erros/log; `MockWhatsAppProvider` com
+  `failureMode`/`failureTimes`/`sendCount` para testes determinísticos;
+  `createWhatsAppProvider`).
+- Schemas Zod compartilhados (`@petflow/shared`, seção "Etapa 6"):
+  config (phoneNumberId/wabaId/displayName/apiVersion/countryCode),
+  template (nome, corpo com variáveis `{{n}}`, linguagem
+  `pt_BR`/`en_US` via regex `/^[a-z]{2}([_-][A-Z]{2})?$/`), consentimento
+  (telefone E.164 obrigatório), mensagem (template + variáveis
+  validadas contra `templateVariableCount()`) e cancelamento — com
+  labels PT-BR.
+- `apps/api/src/whatsapp/` (módulo `WhatsAppModule`, 5 controllers):
+  - `GET/PUT /api/whatsapp/config` (leitura; escrita ADMIN; nunca
+    retorna access token), `POST /whatsapp/config/health` (teste de
+    credencial com sanitização de token), `PATCH /whatsapp/config/status`
+    (ativar/desconectar).
+  - `GET/POST /api/whatsapp/templates` (catálogo + criação com contagem
+    de variáveis), `PATCH /whatsapp/templates/:id/approval` (ADMIN),
+    `PATCH /whatsapp/templates/:id/status`.
+  - `GET/POST /api/whatsapp/consents` e `GET/PUT
+    /whatsapp/consents/:clientId` (opt-in/opt-out auditável por
+    cliente+empresa; escrita ADMIN; bloqueio de envio sem consentimento
+    OPTED_IN).
+  - `GET /api/whatsapp/messages` (filtros status/busca + paginação),
+    `GET/POST /whatsapp/messages` (enfileiramento validado no servidor —
+    cliente, template aprovado, consentimento, variáveis; idempotente
+    por `clientRequestId`), `POST /whatsapp/messages/:id/cancel`.
+  - Webhook (`@Public`, `whatsapp/webhook`): `GET` verificação Meta
+    (retorna challenge em `text/plain`), `POST` com verificação
+    `x-hub-signature-256` (HMAC-SHA256 com `WHATSAPP_APP_SECRET` sobre
+    `req.rawBody`), processamento idempotente por `wamid`
+    (`WhatsAppWebhookEvent`), atualização de status
+    (sent/delivered/read/failed com retry TRANSIENT), resposta
+    `REPLY` "SAIR" → opt-out automático (`OPTED_OUT`, source `REPLY`).
+- Configuração de ambiente (`apps/api/src/config/env.ts`):
+  `WHATSAPP_PROVIDER` (meta|mock, padrão mock em dev/test),
+  `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_VERIFY_TOKEN`,
+  `WHATSAPP_APP_SECRET`, `WHATSAPP_API_VERSION`,
+  `WHATSAPP_COUNTRY_CODE` (prefixo, padrão 55) — credenciais apenas em
+  `.env` local, nunca em docs/Git.
+- **`WhatsAppProviderService`**: resolve credenciais do banco
+  (`WhatsAppConfig` por empresa) com fallback de env; `setProviderConfig()`
+  para injeção de provedor nos testes; `describe()` sem segredos.
+- **`apps/worker`** (fila em Postgres):
+  `src/env.ts` (zod + dotenv fallback `../../.env`;
+  `WORKER_POLL_INTERVAL_MS=5000`, `WHATSAPP_SEND_MAX_PER_CYCLE=20`,
+  `WHATSAPP_SEND_INTERVAL_MS=250`),
+  `src/whatsapp/processor.ts` (`processDueMessages`: claim atômico com
+  `updateMany` (PENDING→SENDING, guarda de corrida), cache de config por
+  ciclo, cancelamento por opt-out/desconexão, transação attempt+update,
+  backoff exponencial com `nextAttemptAt`, classificação TRANSIENT vs
+  PERMANENT — TRANSIENT reagenda (`RETRY`), esgotado `MAX_ATTEMPTS=3` →
+  `FAILED`; cap de envios por ciclo), `src/main.ts` (loop com guarda
+  `running`, heartbeat a cada 60s, SIGINT/SIGTERM), `package.json`
+  (deps: `@petflow/whatsapp`, `@prisma/client`, `dotenv`, `zod`).
+- Frontend (`apps/web`): badge "Etapa 6 — Integração com WhatsApp";
+  rotas `/whatsapp` (status + credenciais + testar conexão +
+  desconectar/reconectar), `/whatsapp/templates` (criar, aprovação,
+  ativar/inativar), `/whatsapp/mensagens` (lista com filtros, envio com
+  variáveis dinâmicas, cancelar), `/whatsapp/mensagens/[id]` (detalhe +
+  tentativas de envio); seção "Consentimento WhatsApp" em
+  `/clientes/[id]` (badge, origem, botões de opt-in ADMIN e descadastro
+  com confirmação); card "Automação WhatsApp" disponível na home
+  (roadmap da home reordenado: WhatsApp → Dashboard → Agendamentos).
+- Testes: **`tests/whatsapp.test.ts` com 61 testes** (unit: E.164,
+  classificação HTTP, backoff, opt-out; integração: config/health com
+  sanitização de token, templates, consentimento com isolamento
+  multiempresa, enfileiramento com validações completas e
+  idempotência, fila com claim concorrente, backoff, cancelamentos e
+  rate limit, webhook com challenge, assinatura inválida 403,
+  idempotência anti-regressão, opt-out por REPLY). `tests/setup-env.ts`
+  com env de teste E6 e limpeza em cascata das tabelas WhatsApp.
+
+### Alterado
+
+- `app.module.ts` registra `WhatsAppModule`; `main.ts` e
+  `tests/helpers/app.ts` habilitam `rawBody` (necessário para a
+  assinatura HMAC do webhook).
+- Roadmap (README e home): **Etapa 6 = WhatsApp (Concluída)**,
+  **Etapa 7 = Dashboard (Próxima)**, Etapa 8 = Agendamentos,
+  Etapa 9 = Assinaturas — conforme prompt oficial da Etapa 6 (o README
+  anterior, com 6=Agendamentos e 7=WhatsApp, foi corrigido; havia linha
+  duplicada na tabela).
+- Total de testes: 190 → **251**.
+
 ## [Etapa 5] — 2026-10-09
 
 ### Adicionado

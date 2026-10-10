@@ -17,6 +17,52 @@ crescer módulo a módulo sem infraestrutura desnecessária.
 | Testes | Vitest + Supertest | Compatível com TypeScript e com o NestJS (HTTP in-memory) |
 | Lint | ESLint 9 (flat config) + typescript-eslint | Padrão atual da comunidade |
 
+## Módulo WhatsApp — integração com Cloud API (Etapa 6)
+
+- **Provedor abstraído em `packages/whatsapp`**: a API/worker falam com
+  `WhatsAppProvider` (interface); `MetaCloudProvider` chama a
+  **WhatsApp Business Cloud API** oficial (HTTPS, `fetch` injetável
+  para testes) e `MockWhatsAppProvider` é determinístico em dev/teste.
+  Scraping, Selenium e QR code ficaram explicitamente fora de escopo;
+  a pasta `automação do whatsapp/` permanece intocada.
+- **Configuração multiempresa por banco**: credenciais
+  (`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`,
+  `WHATSAPP_VERIFY_TOKEN`) vêm primeiro de `WhatsAppConfig` (por
+  empresa) com fallback em variáveis de ambiente; a API nunca devolve
+  token (apenas `hasAccessToken`) e erros passam por scrub antes de
+  log/serialização. Em dev/teste o provedor padrão é `mock`
+  (`WHATSAPP_PROVIDER`).
+- **Enfileirar ≠ entregar** (fila em Postgres, sem Redis/BullMQ):
+  `POST /api/whatsapp/messages` só valida e grava `PENDING` +
+  `nextAttemptAt`; o `apps/worker` faz claim atômico
+  (`updateMany` `PENDING/RETRY → SENDING` — dois workers nunca enviam
+  a mesma mensagem), chama o provedor e grava
+  `WhatsAppSendAttempt` + transição de status na mesma transação.
+  Alternativa descartada (Redis/BullMQ) seria infraestrutura nova sem
+  necessidade comprovada (regra de evolução arquitetural nº 4).
+- **Backoff e classificação de erro**: 429/408/5xx são TRANSIENT →
+  reagenda com `5s · 2^n` (cap 300s) até `maxAttempts` (3) → `FAILED`;
+  demais são PERMANENT → falha imediata. Rate limit por ciclo
+  (`WHATSAPP_SEND_MAX_PER_CYCLE`/`WHATSAPP_SEND_INTERVAL_MS`).
+- **Cancelamentos server-side**: sem consentimento `OPTED_IN`, opt-out
+  posterior ou config `DISCONNECTED` → mensagem `CANCELLED` sem
+  chamada ao provedor (decisão do servidor, nunca do cliente).
+- **Webhook idempotente e verificado**: `GET` responde o challenge da
+  Meta em `text/plain`; `POST` valida `x-hub-signature-256`
+  (HMAC-SHA256 do corpo bruto com `WHATSAPP_APP_SECRET`, `rawBody`
+  habilitado no Nest) → 403 em assinatura inválida; cada
+  `(wamid, tipo)` é gravado uma única vez (`WhatsAppWebhookEvent`)
+  antes de transicionar status (SENT/DELIVERED/READ/FAILED) —
+  reentregas da Meta nunca duplicam efeito. Resposta `"SAIR"` grava
+  opt-out (`source = REPLY`).
+- **Permissões**: leitura autenticada; escrita de config/templates e
+  opt-in restritas a `ADMIN`; opt-out e cancelamento liberados a
+  qualquer sessão (proteção do cliente); webhook público com
+  verificação criptográfica.
+- **Frontend**: `/whatsapp` (status/credenciais/teste de conexão),
+  `/whatsapp/templates`, `/whatsapp/mensagens` (+ detalhe com
+  tentativas), seção de consentimento em `/clientes/[id]`.
+
 ## Estrutura de aplicações
 
 ```

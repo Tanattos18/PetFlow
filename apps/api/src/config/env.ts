@@ -18,6 +18,13 @@ const schema = z.object({
     .nonnegative()
     .default(15 * 60 * 1000),
   APP_ORIGINS: z.string().default("http://localhost:3000"),
+  // WhatsApp (Etapa 6) — segredos somente aqui, nunca no frontend/Git
+  WHATSAPP_PROVIDER: z.enum(["mock", "meta"]).default("mock"),
+  WHATSAPP_ACCESS_TOKEN: z.string().optional(),
+  WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+  WHATSAPP_APP_SECRET: z.string().optional(),
+  WHATSAPP_API_VERSION: z.string().default("v21.0"),
+  WHATSAPP_COUNTRY_CODE: z.string().regex(/^\d{1,3}$/, "Código do país inválido").default("55"),
 });
 
 const parsed = schema.safeParse(process.env);

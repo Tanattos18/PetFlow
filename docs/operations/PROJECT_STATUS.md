@@ -2,51 +2,65 @@
 
 ## Etapa atual
 
-**Etapa 5 — Clientes, pets e serviços** — CONCLUÍDA
+**Etapa 6 — Integração com WhatsApp** — CONCLUÍDA
 (aguardando aprovação do proprietário para avançar).
 
 Data: 2026-10-09.
 
 Etapas anteriores: Etapa 0 (2026-10-09), Etapa 1 (2026-10-09),
-Etapa 2 (2026-10-09), Etapa 3 (2026-10-09), Etapa 4 (2026-10-09).
+Etapa 2 (2026-10-09), Etapa 3 (2026-10-09), Etapa 4 (2026-10-09),
+Etapa 5 (2026-10-09).
 
-## Entregas concluídas (Etapa 5)
+Escopo: WhatsApp Business Cloud API (Meta) como provedor de mensagens,
+fila em PostgreSQL processada pelo `apps/worker` (sem Redis/BullMQ),
+webhook oficial com verificação de assinatura, consentimento auditável
+e frontend de gestão — sem scraping/QR, sem inventar agendamentos, sem
+tocar em `automação do whatsapp/`.
 
-- [x] Migration aditiva `20261009222638_etapa5_clients_pets_services`
+## Entregas concluídas (Etapa 6)
+
+- [x] Migration aditiva `20261009232055_etapa6_whatsapp_integration`
       aplicada em `petflow` (dev) e `petflow_test` (testes); schema
       validado; nenhum dado existente alterado.
-- [x] Modelos: `Client` (contatos normalizados, endereço estruturado,
-      `nameKey` com índice — sem unique, política de duplicidade suave),
-      `Pet` (espécie/sexo/nascimento/peso, FK `Restrict` ao responsável)
-      e `Service` (nome único por empresa via `nameKey`, preço
-      `Decimal(12,2)`, duração opcional 1..1440 min);
-      `Sale.clientId` opcional (FK `SetNull` + índice); enums
-      `PetSpecies` e `PetSex`.
-- [x] API módulos `clients`, `pets` e `services` (prefixo `/api`):
-      listagem com busca/filtros/paginação, detalhe, criação, edição e
-      `PATCH /:id/status`; `GET /clients/:id/pets`; escrita de
-      clientes/pets autenticada (MEMBER), escrita de serviços restrita
-      a ADMIN; leitura de tudo autenticada; recursos de outra empresa →
-      404.
-- [x] Anti-duplicidade de clientes: `nameKey` + contato igual com
-      cliente `ACTIVE` → 409 `"Cliente possivelmente duplicado"`;
-      homônimos sem contato e famílias com mesmo telefone são permitidos;
-      pre-check documentado no serviço (sem unique duro no banco).
-- [x] Integração venda–cliente: `POST /sales` aceita `clientId`
-      opcional validado no servidor (ativo + mesma empresa; caso
-      contrário 400); listagem e detalhe retornam `client`; venda rápida
-      sem cliente continua funcionando; snapshots/totais preservados.
-- [x] Schemas Zod compartilhados (`@petflow/shared`) de clientes, pets
-      e serviços + enums/labels; `createSaleSchema` com `clientId`
-      opcional; validações de data futura, peso e duração.
-- [x] Frontend: `/clientes` (lista com busca e contagem de pets,
-      cadastro/endereço completo, ativar/inativar),
-      `/clientes/[id]` (ficha + gestão de pets),
-      `/pets` (listagem global com filtros e cadastro/edição),
-      `/servicos` (catálogo, escrita só ADMIN); `/pdv` com seletor
-      opcional de cliente; `/vendas` e detalhe exibem o cliente; home
-      com "Clientes e animais" e "Serviços" disponíveis; badge
-      "Etapa 5".
+- [x] Modelos: `WhatsAppConfig`, `WhatsAppTemplate`,
+      `WhatsAppConsent`, `WhatsAppMessage`, `WhatsAppSendAttempt`,
+      `WhatsAppWebhookEvent` (+ 8 enums WhatsApp), todos com
+      `companyId`, FK `Restrict` e índices multiempresa.
+- [x] Pacote `@petflow/whatsapp`: E.164 (`toE164`/`isE164`),
+      classificação de erros (429/408/5xx = TRANSIENT),
+      backoff exponencial 5s·2^n (cap 300s), opt-out textual,
+      `MetaCloudProvider` (fetch injetável, scrub de segredos) e
+      `MockWhatsAppProvider` determinístico.
+- [x] Schemas Zod E6 em `@petflow/shared` (config, template com
+      variáveis `{{n}}`, consentimento E.164, mensagem, cancelamento)
+      + labels PT-BR.
+- [x] API módulos `whatsapp` (prefixo `/api`, sob `AuthGuard` global):
+      `config` (GET/PUT, health POST, status PATCH — escrita ADMIN,
+      token nunca exposto), `templates` (catálogo/criação/aprovação/
+      status), `consents` (por cliente, opt-in ADMIN, opt-out
+      auditável), `messages` (listagem com filtros, enfileiramento
+      idempotente por `clientRequestId`, cancelamento).
+- [x] Webhook Meta (`@Public`): `GET` com challenge em `text/plain`,
+      `POST` com verificação `x-hub-signature-256` sobre `rawBody`
+      (403 em assinatura inválida), eventos idempotentes por `wamid`,
+      status sent/delivered/read/failed (retry TRANSIENT) e resposta
+      "SAIR" → `OPTED_OUT` (source `REPLY`).
+- [x] Fila de envio em `apps/worker`: claim atômico
+      (`updateMany` PENDING→SENDING), consentimento/desconexão como
+      cancelamento, transação attempt+update, backoff,
+      `MAX_ATTEMPTS=3` → FAILED, rate limit por ciclo
+      (`WHATSAPP_SEND_MAX_PER_CYCLE`/`WHATSAPP_SEND_INTERVAL_MS`),
+      loop com heartbeat e shutdown gracioso (SIGINT/SIGTERM).
+- [x] Envio só server-side: cliente nunca controla status/saldo/
+      provedor; leituras individuais via `findFirst({ id, companyId })`
+      → 404; bloqueio de envio sem consentimento `OPTED_IN`.
+- [x] Frontend: badge "Etapa 6 — Integração com WhatsApp";
+      `/whatsapp` (status, credenciais, teste de conexão,
+      desconectar/reconectar), `/whatsapp/templates` (criar,
+      aprovação, ativar/inativar), `/whatsapp/mensagens` (lista com
+      filtros, envio com variáveis, cancelar), `/whatsapp/mensagens/[id]`
+      (detalhe + tentativas); seção "Consentimento WhatsApp" em
+      `/clientes/[id]`; card "Automação WhatsApp" disponível na home.
 
 ## Testes executados
 
@@ -55,38 +69,46 @@ Etapa 2 (2026-10-09), Etapa 3 (2026-10-09), Etapa 4 (2026-10-09).
 | Schema Prisma válido | `npm run db:validate` | OK |
 | Lint | `npm run lint` | OK (0 erros) |
 | Typecheck | `npm run typecheck` | OK (4 workspaces) |
-| Testes (PostgreSQL real) | `npm test` | 190/190 aprovados (11 arquivos) |
-| Build | `npm run build` | OK (shared, api, web, worker; 22 rotas) |
-| E2E API + web | script `e2e-etapa5.ps1` | 40/40 verificações OK |
+| Testes (PostgreSQL real) | `npm test` | 251/251 aprovados (12 arquivos) |
+| Build | `npm run build` | OK (shared, api, web, worker; 27 rotas) |
 
-Cobertura dos testes novos (49): clientes (normalização de telefone/
-email/CPF, duplicidade 409 vs. homônimos e famílias, cliente inativo
-não bloqueia novo cadastro, busca/paginação, isolamento multiempresa,
-contagem de pets/vendas, permissão MEMBER), pets (sexo padrão,
-formatação de peso/nascimento, responsável inválido/inativo, espécie/
-data/peso inválidos, filtros, troca de responsável dentro da empresa e
-recusa entre empresas, status), serviços (criação ADMIN, 403 MEMBER na
-escrita e leitura liberada, nome duplicado 409, validações de preço/
-duração, ordenação por preço, edição/inativação) e vendas com cliente
-(vínculo no recibo e detalhe, venda rápida sem cliente, `clientId` de
-outra empresa e cliente inativo rejeitados).
+Cobertura dos testes novos (61, `tests/whatsapp.test.ts`): E.164,
+classificação de HTTP e backoff, opt-out textual; config com sanitização
+de token e permissões; templates com contagem de variáveis e
+isolamento; consentimento (opt-in ADMIN, opt-out, 404 cross-tenant);
+enfileiramento (validações completas, idempotência, 404 cross-tenant);
+fila (ACCEPTED não entregue, claim concorrente → 1 envio, transient
+reagenda, 3 tentativas → FAILED, permanent imediato, cancelamentos,
+rate limit); webhook (challenge, 403 por assinatura, delivered,
+duplicado idempotente, anti-regressão, failed, "SAIR" → opt-out, JSON
+inválido).
 
 ## Pendências conhecidas
 
 - CI (lint + typecheck + testes) quando solicitado.
+- Credenciais reais da Meta (`WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`,
+  `WHATSAPP_VERIFY_TOKEN`) só no `.env` local — provisionamento em
+  produção é decisão explícita do proprietário.
+- Webhook Meta exige URL pública (ngrok/túnel/domínio) — fora do
+  ambiente local.
+- Botões interativos e mídia (imagem/áudio/documento) — camada de
+  provedor suporta payload `components`; UI de mídia fica para etapa
+  futura se necessário.
+- Entrega de mensagens fora de horário/janela de 24h da Meta (template
+  vs. sessão) — validação server-side por `hasPendingSession` está
+  registrada; revisar política da Meta na publicação.
 - Validação de dígitos verificadores de CPF/CNPJ (hoje CPF valida
   apenas 11 dígitos) — avaliar em etapa avançada.
 - Duplicidade de clientes: janela de corrida aceita (sem unique duro de
-  `nameKey`) — se necessária garantia forte, migrar para tabela de
-  identidade/contato deduplicada.
-- Itens de serviço em vendas: fora do escopo da Etapa 5 (catálogo de
-  serviços é preparação para agendamentos da Etapa 6).
+  `nameKey`).
+- Itens de serviço em vendas: fora do escopo (catálogo é preparação
+  para agendamentos — agora na Etapa 8).
 - Estoque negativo nunca é permitido por padrão; backorder seria decisão
   explícita.
 - Formas de pagamento configuráveis além de Dinheiro/Cartão/Pix/Outro.
 - Vendas anteriores à Etapa 4 (sem `cashSessionId`/lançamento) ficam fora
   do financeiro — limitação de dados de desenvolvimento.
-- Integração da pasta `automação do whatsapp/` em etapa própria.
+- CI e deploy (contínuos).
 
 ## Git
 
@@ -100,9 +122,11 @@ outra empresa e cliente inativo rejeitados).
 - `398ad85` docs: registra push da etapa 4
 - `59ef5a2` docs: reescreve README com roadmap das 9 etapas
 - `9d273b9` feat(etapa-5): implementa clientes, pets e serviços
+- `e7bfd34` docs: registra hash do commit da etapa 5
 - Push confirmado: `2af5ba7..9d273b9 main -> main` (inclui a Etapa 5).
 
 ## Próxima etapa autorizada
 
-**Etapa 6 — a definir** — a iniciar somente após aprovação explícita do
-proprietário.
+**Etapa 7 — Dashboard** — a iniciar somente após aprovação explícita
+do proprietário (roadmap: 6=WhatsApp ✅, 7=Dashboard, 8=Agendamentos,
+9=Assinaturas — conforme prompt oficial da Etapa 6).

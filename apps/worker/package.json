@@ -9,6 +9,12 @@
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
+  "dependencies": {
+    "@petflow/whatsapp": "^0.1.0",
+    "@prisma/client": "^5.22.0",
+    "dotenv": "^16.6.1",
+    "zod": "^3.25.76"
+  },
   "devDependencies": {
     "tsx": "^4.19.0",
     "typescript": "^5.6.2"

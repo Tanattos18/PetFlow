@@ -37,9 +37,14 @@ const plannedModules = [
     href: "/servicos",
     available: true,
   },
-  { name: "Agendamentos", description: "Banho, tosa e agenda" },
-  { name: "Automação WhatsApp", description: "Mensagens e atendimento automatizado" },
+  {
+    name: "Automação WhatsApp",
+    description: "Integração com a Cloud API, templates, consentimento e envios",
+    href: "/whatsapp",
+    available: true,
+  },
   { name: "Dashboard e relatórios", description: "Indicadores gerenciais" },
+  { name: "Agendamentos", description: "Banho, tosa e agenda" },
 ];
 
 export default function HomePage() {

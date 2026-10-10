@@ -17,3 +17,9 @@ export function testDatabaseUrl(): string {
 process.env.NODE_ENV = "test";
 process.env.DATABASE_URL = testDatabaseUrl();
 process.env.AUTH_COOKIE_SECURE = "false";
+// WhatsApp (Etapa 6): provedor mock + segredos locais conhecidos para os
+// testes assinarem os webhooks (nunca valores reais)
+process.env.WHATSAPP_PROVIDER = "mock";
+process.env.WHATSAPP_VERIFY_TOKEN = "petflow-test-verify-token";
+process.env.WHATSAPP_APP_SECRET = "petflow-test-app-secret";
+process.env.WHATSAPP_COUNTRY_CODE = "55";

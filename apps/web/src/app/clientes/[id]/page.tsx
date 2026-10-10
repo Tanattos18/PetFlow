@@ -8,10 +8,13 @@ import { fetchSession, type Session } from "../../../lib/session";
 import {
   petSexLabels,
   petSpeciesLabels,
+  whatsappConsentSourceLabels,
+  whatsappConsentStatusLabels,
   type ClientDto,
   type PetDto,
   type PetSex,
   type PetSpecies,
+  type WhatsAppConsentDto,
 } from "../../../lib/types";
 
 const emptyPetForm = {
@@ -34,6 +37,7 @@ export default function ClienteDetalhePage() {
   const [loading, setLoading] = useState(true);
   const [client, setClient] = useState<ClientDto | null>(null);
   const [pets, setPets] = useState<PetDto[]>([]);
+  const [consent, setConsent] = useState<WhatsAppConsentDto | null>(null);
   const [notFound, setNotFound] = useState(false);
 
   const [editingPetId, setEditingPetId] = useState<string | null>(null);
@@ -46,12 +50,21 @@ export default function ClienteDetalhePage() {
 
   const loadClient = useCallback(async () => {
     try {
-      const [clientData, petsData] = await Promise.all([
+      const [clientData, petsData, consentData] = await Promise.all([
         api<ClientDto>(`/api/clients/${clientId}`),
         api<{ items: PetDto[]; total: number }>(`/api/clients/${clientId}/pets`),
+        api<WhatsAppConsentDto | Record<string, never>>(
+          `/api/whatsapp/consents/${clientId}`,
+          { redirectOnUnauthorized: false },
+        ).catch(() => null),
       ]);
       setClient(clientData);
       setPets(petsData.items);
+      setConsent(
+        consentData && typeof consentData === "object" && "id" in consentData
+          ? (consentData as WhatsAppConsentDto)
+          : null,
+      );
       setNotFound(false);
     } catch (err) {
       if (err instanceof ApiError && err.status === 404) {
@@ -185,6 +198,33 @@ export default function ClienteDetalhePage() {
     }
   }
 
+  async function handleConsent(status: "OPTED_IN" | "OPTED_OUT") {
+    if (!client) return;
+    if (status === "OPTED_OUT") {
+      const confirmed = window.confirm(
+        `Registrar o descadastro de ${client.name} no WhatsApp? Novos envios ficam bloqueados.`,
+      );
+      if (!confirmed) return;
+    }
+    setActionError(null);
+    try {
+      await api(`/api/whatsapp/consents/${client.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ status, source: "MANUAL" }),
+      });
+      setNotice(
+        status === "OPTED_IN"
+          ? "Consentimento registrado."
+          : "Descadastro registrado — envios bloqueados.",
+      );
+      await loadClient();
+    } catch (err) {
+      setActionError(
+        err instanceof ApiError ? err.message : "Falha ao atualizar o consentimento.",
+      );
+    }
+  }
+
   if (loading || !session) {
     return <p className="py-16 text-center text-sm text-slate-500">Carregando...</p>;
   }
@@ -312,6 +352,79 @@ export default function ClienteDetalhePage() {
             <dd className="text-slate-700">{client._count?.sales ?? 0}</dd>
           </div>
         </dl>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            Consentimento WhatsApp
+          </h3>
+          <span
+            className={
+              consent?.status === "OPTED_IN"
+                ? "rounded-full bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700"
+                : consent?.status === "OPTED_OUT"
+                  ? "rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-700"
+                  : "rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500"
+            }
+          >
+            {consent
+              ? whatsappConsentStatusLabels[consent.status]
+              : "Sem registro de consentimento"}
+          </span>
+        </div>
+        <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <dt className="text-xs uppercase text-slate-400">Origem</dt>
+            <dd className="text-slate-700">
+              {consent ? whatsappConsentSourceLabels[consent.source] : "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase text-slate-400">Telefone (E.164)</dt>
+            <dd className="text-slate-700">{consent?.phone || "—"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase text-slate-400">Última alteração</dt>
+            <dd className="text-slate-700">
+              {consent?.changedAt ? new Date(consent.changedAt).toLocaleString("pt-BR") : "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-xs uppercase text-slate-400">Envios</dt>
+            <dd className="text-slate-700">
+              {consent?.status === "OPTED_IN"
+                ? "Permitidos"
+                : consent?.status === "OPTED_OUT"
+                  ? "Bloqueados"
+                  : "Sem consentimento — bloqueados"}
+            </dd>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={() => void handleConsent("OPTED_IN")}
+            disabled={consent?.status === "OPTED_IN"}
+            className="rounded-md border border-teal-700 px-3 py-2 text-xs font-medium text-teal-800 hover:bg-teal-100 disabled:opacity-50"
+          >
+            Registrar consentimento
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleConsent("OPTED_OUT")}
+            disabled={consent?.status === "OPTED_OUT"}
+            className="rounded-md border border-red-300 px-3 py-2 text-xs font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+          >
+            Registrar descadastro
+          </button>
+          <Link
+            href="/whatsapp"
+            className="rounded-md border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Ver integração
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">

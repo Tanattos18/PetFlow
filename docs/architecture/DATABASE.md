@@ -1,5 +1,50 @@
 # Banco de dados — diretrizes e modelo atual
 
+## Modelos implementados (Etapa 6)
+
+Migration: `database/prisma/migrations/20261009232055_etapa6_whatsapp_integration`
+(aditiva — não altera nem remove dados existentes).
+
+| Modelo | Campos principais | Restrições/índices |
+|---|---|---|
+| `WhatsAppConfig` | `companyId` (FK `Restrict`, **única por empresa**), `provider` (default `meta`), `phoneNumberId?`, `wabaId?`, `displayName?`, `accessToken?`, `verifyToken?`, `appSecret?`, `apiVersion` (default `v21.0`), `countryCode` (default `55`), `status` (enum `WhatsAppConfigStatus`), timestamps | `(companyId)` único; credenciais somente servidor (nunca retornadas pela API); status `DISCONNECTED` bloqueia envios |
+| `WhatsAppTemplate` | `companyId` (FK `Restrict`), `name`, `category` (enum `WhatsAppTemplateCategory`), `body`, `language` (`pt_BR`, `en_US`…), `variablesCount` `Int`, `status` (enum `WhatsAppTemplateStatus`), `createdByUserId` (FK `Restrict`), timestamps | `(companyId, name)` único; `variablesCount` derivado do corpo (`{{n}}`) no servidor; envio exige `APPROVED` |
+| `WhatsAppConsent` | `companyId` (FK `Restrict`), `clientId` (FK `Restrict`), `phone` (E.164), `status` (enum `WhatsAppConsentStatus`), `source` (enum `WhatsAppConsentSource`), `changedByUserId?` (FK `SetNull`), timestamps | único `(companyId, clientId)`; máquina de estados auditável (`OPTED_IN`/`OPTED_OUT`); origem `REPLY` vem do webhook |
+| `WhatsAppMessage` | `companyId` (FK `Restrict`), `clientId` (FK `Restrict`), `templateId` (FK `Restrict`), `phone`, `variables` `Json?`, `status` (enum `WhatsAppMessageStatus`), `origin` (enum `WhatsAppMessageOrigin`), `clientRequestId?`, `wamid?`, `providerMessageId?`, `failureReason?`, `failureCode?`, `maxAttempts` (default 3), `attemptCount`, `nextAttemptAt?`, `lastAttemptAt?`, `sentAt?`, `deliveredAt?`, `readAt?`, `failedAt?`, `cancelledAt?`, `cancelledByUserId?` (FK `SetNull`), `createdByUserId?` (FK `Restrict`), timestamps | únicos `(companyId, clientRequestId)` e `(companyId, wamid)` (NULLs não conflitam); índices `(companyId, status, nextAttemptAt)` (fila), `(companyId, createdAt)`, `(clientId)`; fila = `PENDING`/`RETRY` com `nextAttemptAt <= now` |
+| `WhatsAppSendAttempt` | `companyId` (FK `Restrict`), `messageId` (FK `Restrict`), `attemptNumber` `Int`, `status` (enum `WhatsAppMessageStatus`), `result` (enum `WhatsAppAttemptResult`), `httpStatus?`, `providerMessageId?`, `error?`, `startedAt`, `finishedAt?` | único `(messageId, attemptNumber)`; histórico imutável de cada tentativa (backoff auditável) |
+| `WhatsAppWebhookEvent` | `companyId` (FK `Restrict`), `wamid` (FK `Restrict` → `WhatsAppMessage`), `type` (enum `WhatsAppWebhookEventType`), `payload` `Json`, `processedAt` | único `(wamid, type)` — **idempotência** do webhook (reentrega da Meta nunca duplica efeito) |
+
+Enums novos:
+
+- `WhatsAppConfigStatus`: `PENDING`, `ACTIVE`, `DISCONNECTED`.
+- `WhatsAppTemplateStatus`: `PENDING`, `APPROVED`, `REJECTED`, `DISABLED`.
+- `WhatsAppTemplateCategory`: `MARKETING`, `UTILITY`, `AUTHENTICATION`.
+- `WhatsAppConsentStatus`: `OPTED_IN`, `OPTED_OUT`.
+- `WhatsAppConsentSource`: `MANUAL`, `IMPORT`, `WEBHOOK`, `REPLY`.
+- `WhatsAppMessageStatus`: `PENDING`, `SENDING`, `ACCEPTED`, `SENT`,
+  `DELIVERED`, `READ`, `RETRY`, `FAILED`, `CANCELLED`.
+- `WhatsAppMessageOrigin`: `MANUAL`, `AUTOMATED`.
+- `WhatsAppAttemptResult`: `SUCCESS`, `TRANSIENT_ERROR`,
+  `PERMANENT_ERROR`.
+- `WhatsAppWebhookEventType`: `SENT`, `DELIVERED`, `READ`, `FAILED`,
+  `REPLY`.
+
+Regras derivadas:
+
+- **Envio nunca começa no banco do usuário**: enfileirar grava
+  `PENDING` + `nextAttemptAt`; o worker (`apps/worker`) faz claim
+  atômico (`updateMany` `PENDING/RETRY → SENDING`), envia via
+  provedor e grava `WhatsAppSendAttempt` + transição de status na mesma
+  transação.
+- Backoff exponencial: `nextAttemptAt = now + 5s · 2^attempt` (cap
+  300s); `attemptCount >= maxAttempts` → `FAILED` (nunca reprograma).
+- Sem consentimento `OPTED_IN` ou config `DISCONNECTED` → mensagem vira
+  `CANCELLED` (motivo registrado), sem chamada ao provedor.
+- Webhook idempotente por `(wamid, type)`; payloads brutos ficam em
+  `WhatsAppWebhookEvent.payload` para auditoria.
+- Histórico imutável: tentativas e eventos nunca são editados;
+  cancelamento é transição própria (`CANCELLED` + motivo/autor).
+
 ## Modelos implementados (Etapa 5)
 
 Migration: `database/prisma/migrations/20261009222638_etapa5_clients_pets_services`

@@ -574,3 +574,222 @@ export const listServicesQuerySchema = paginationQuerySchema.extend({
   direction: z.enum(["asc", "desc"]).default("asc"),
 });
 export type ListServicesQuery = z.infer<typeof listServicesQuerySchema>;
+
+// ---------------------------------------------------------------------------
+// Etapa 6 — integração com WhatsApp
+// ---------------------------------------------------------------------------
+
+export const whatsappConfigStatusSchema = z.enum([
+  "NOT_CONFIGURED",
+  "CONFIGURED",
+  "ACTIVE",
+  "ERROR",
+  "DISCONNECTED",
+]);
+export type WhatsAppConfigStatus = z.infer<typeof whatsappConfigStatusSchema>;
+
+export const whatsappConfigStatusLabels: Record<WhatsAppConfigStatus, string> = {
+  NOT_CONFIGURED: "Não configurado",
+  CONFIGURED: "Configurado",
+  ACTIVE: "Ativo",
+  ERROR: "Erro",
+  DISCONNECTED: "Desconectado",
+};
+
+export const updateWhatsAppConfigSchema = z.object({
+  phoneNumberId: z.string().trim().max(60).optional().nullable(),
+  wabaId: z.string().trim().max(60).optional().nullable(),
+  displayName: optionalText(120),
+});
+export type UpdateWhatsAppConfigInput = z.infer<typeof updateWhatsAppConfigSchema>;
+
+export const updateWhatsAppConfigStatusSchema = z.object({
+  status: z.enum(["CONFIGURED", "DISCONNECTED"]),
+});
+export type UpdateWhatsAppConfigStatusInput = z.infer<
+  typeof updateWhatsAppConfigStatusSchema
+>;
+
+export const whatsappTemplateCategorySchema = z.enum([
+  "UTILITY",
+  "MARKETING",
+  "AUTHENTICATION",
+]);
+export type WhatsAppTemplateCategory = z.infer<typeof whatsappTemplateCategorySchema>;
+
+export const whatsappTemplateApprovalSchema = z.enum([
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "REJECTED",
+]);
+export type WhatsAppTemplateApproval = z.infer<typeof whatsappTemplateApprovalSchema>;
+
+export const whatsappTemplateApprovalLabels: Record<WhatsAppTemplateApproval, string> = {
+  PENDING_APPROVAL: "Aguardando aprovação",
+  APPROVED: "Aprovado",
+  REJECTED: "Rejeitado",
+};
+
+export const whatsappTemplateCategoryLabels: Record<WhatsAppTemplateCategory, string> = {
+  UTILITY: "Utilidade",
+  MARKETING: "Marketing",
+  AUTHENTICATION: "Autenticação",
+};
+
+const whatsappTemplateNameSchema = z
+  .string()
+  .trim()
+  .min(3, "Nome do template deve ter ao menos 3 caracteres")
+  .max(64, "Nome do template deve ter no máximo 64 caracteres")
+  .regex(
+    /^[a-z0-9_]+$/,
+    "Nome do template deve conter apenas minúsculas, números e sublinhado",
+  );
+
+const whatsappLanguageSchema = z
+  .string()
+  .trim()
+  .regex(/^[a-z]{2}([_-][A-Z]{2})?$/, "Idioma inválido (ex.: pt_BR, en_US)");
+
+/** Conta as variáveis {{1}}, {{2}}... exigidas pelo corpo do template. */
+export function templateVariableCount(body: string): number {
+  const matches = [...body.matchAll(/\{\{(\d+)\}\}/g)].map((match) => Number(match[1]));
+  if (matches.length === 0) return 0;
+  return Math.max(...matches);
+}
+
+function checkTemplateBody(body: string, ctx: z.RefinementCtx) {
+  const numbers = [...body.matchAll(/\{\{(\d+)\}\}/g)]
+    .map((match) => Number(match[1]))
+    .sort((a, b) => a - b);
+  const unique = [...new Set(numbers)];
+  const contiguous = unique.every((value, index) => value === index + 1);
+  if (!contiguous) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["body"],
+      message: "Variáveis devem ser {{1}}, {{2}}... sequenciais",
+    });
+  }
+}
+
+const whatsappTemplateBodySchema = z
+  .string()
+  .trim()
+  .min(1, "Corpo do template é obrigatório")
+  .max(1024, "Corpo do template deve ter no máximo 1024 caracteres")
+  .superRefine(checkTemplateBody);
+
+export const createWhatsAppTemplateSchema = z.object({
+  name: whatsappTemplateNameSchema,
+  language: whatsappLanguageSchema.default("pt_BR"),
+  category: whatsappTemplateCategorySchema.default("UTILITY"),
+  body: whatsappTemplateBodySchema,
+  providerReference: optionalText(120),
+});
+export type CreateWhatsAppTemplateInput = z.infer<typeof createWhatsAppTemplateSchema>;
+
+export const updateWhatsAppTemplateSchema = createWhatsAppTemplateSchema
+  .partial()
+  .extend({
+    approval: whatsappTemplateApprovalSchema.optional(),
+    status: recordStatusSchema.optional(),
+  });
+export type UpdateWhatsAppTemplateInput = z.infer<typeof updateWhatsAppTemplateSchema>;
+
+export const listWhatsAppTemplatesQuerySchema = paginationQuerySchema.extend({
+  search: z.string().trim().max(120).optional(),
+  status: recordStatusSchema.optional(),
+  approval: whatsappTemplateApprovalSchema.optional(),
+  orderBy: z.enum(["name", "createdAt"]).default("createdAt"),
+  direction: z.enum(["asc", "desc"]).default("desc"),
+});
+export type ListWhatsAppTemplatesQuery = z.infer<typeof listWhatsAppTemplatesQuerySchema>;
+
+export const whatsappConsentStatusSchema = z.enum(["OPTED_IN", "OPTED_OUT"]);
+export type WhatsAppConsentStatus = z.infer<typeof whatsappConsentStatusSchema>;
+
+export const whatsappConsentSourceSchema = z.enum(["MANUAL", "REPLY", "IMPORT"]);
+export type WhatsAppConsentSource = z.infer<typeof whatsappConsentSourceSchema>;
+
+export const whatsappConsentStatusLabels: Record<WhatsAppConsentStatus, string> = {
+  OPTED_IN: "Com consentimento",
+  OPTED_OUT: "Descadastrado",
+};
+
+export const whatsappConsentSourceLabels: Record<WhatsAppConsentSource, string> = {
+  MANUAL: "Registro manual",
+  REPLY: "Resposta no WhatsApp",
+  IMPORT: "Importação",
+};
+
+export const upsertWhatsAppConsentSchema = z.object({
+  status: whatsappConsentStatusSchema,
+  source: whatsappConsentSourceSchema.default("MANUAL"),
+  notes: optionalText(500),
+});
+export type UpsertWhatsAppConsentInput = z.infer<typeof upsertWhatsAppConsentSchema>;
+
+export const listWhatsAppConsentsQuerySchema = paginationQuerySchema.extend({
+  search: z.string().trim().max(120).optional(),
+  status: whatsappConsentStatusSchema.optional(),
+  clientId: z.string().trim().max(60).optional(),
+});
+export type ListWhatsAppConsentsQuery = z.infer<typeof listWhatsAppConsentsQuerySchema>;
+
+export const whatsappMessageStatusSchema = z.enum([
+  "PENDING",
+  "PROCESSING",
+  "ACCEPTED",
+  "SENT",
+  "DELIVERED",
+  "READ",
+  "FAILED",
+  "CANCELLED",
+]);
+export type WhatsAppMessageStatus = z.infer<typeof whatsappMessageStatusSchema>;
+
+export const whatsappMessageStatusLabels: Record<WhatsAppMessageStatus, string> = {
+  PENDING: "Pendente",
+  PROCESSING: "Processando",
+  ACCEPTED: "Aceita pelo provedor",
+  SENT: "Enviada",
+  DELIVERED: "Entregue",
+  READ: "Lida",
+  FAILED: "Falha",
+  CANCELLED: "Cancelada",
+};
+
+export const whatsappMessageOriginSchema = z.enum(["MANUAL", "SERVICE_REMINDER"]);
+export type WhatsAppMessageOrigin = z.infer<typeof whatsappMessageOriginSchema>;
+
+export const createWhatsAppMessageSchema = z.object({
+  clientId: z.string().trim().min(1, "Cliente é obrigatório").max(60),
+  templateId: z.string().trim().min(1, "Template é obrigatório").max(60),
+  variables: z
+    .array(z.string().trim().max(1024, "Variável deve ter no máximo 1024 caracteres"))
+    .max(10, "Máximo de 10 variáveis")
+    .default([]),
+  idempotencyKey: z.string().trim().min(6).max(64).optional(),
+});
+export type CreateWhatsAppMessageInput = z.infer<typeof createWhatsAppMessageSchema>;
+
+export const listWhatsAppMessagesQuerySchema = paginationQuerySchema.extend({
+  from: dateField.optional(),
+  to: dateField.optional(),
+  status: whatsappMessageStatusSchema.optional(),
+  origin: whatsappMessageOriginSchema.optional(),
+  clientId: z.string().trim().max(60).optional(),
+  templateId: z.string().trim().max(60).optional(),
+  search: z.string().trim().max(40).optional(),
+});
+export type ListWhatsAppMessagesQuery = z.infer<typeof listWhatsAppMessagesQuerySchema>;
+
+export const cancelWhatsAppMessageSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Motivo é obrigatório para cancelamento")
+    .max(300, "Motivo deve ter no máximo 300 caracteres"),
+});
+export type CancelWhatsAppMessageInput = z.infer<typeof cancelWhatsAppMessageSchema>;

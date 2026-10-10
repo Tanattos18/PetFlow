@@ -5,9 +5,9 @@ Cadastros de clientes e animais, catálogo de serviços, produtos e estoque,
 vendas e ponto de venda, caixa e financeiro — com permissões por perfil,
 isolamento total entre empresas e trilha de auditoria em cada operação.
 
-> **Status:** 5 de 9 etapas concluídas (mais a fundação técnica do projeto).
-> Etapas 1–5 entregues e verificadas em 09/10/2026 (aguardando aprovação).
-> Próxima etapa: **Etapa 6 — Agendamentos** (escopo a definir na abertura).
+> **Status:** 6 de 9 etapas concluídas (mais a fundação técnica do projeto).
+> Etapas 1–6 entregues e verificadas em 09/10/2026 (aguardando aprovação).
+> Próxima etapa: **Etapa 7 — Dashboard** (escopo a definir na abertura).
 > Detalhes em [`docs/operations/PROJECT_STATUS.md`](docs/operations/PROJECT_STATUS.md).
 
 ---
@@ -98,6 +98,29 @@ isolamento total entre empresas e trilha de auditoria em cada operação.
   liberada a qualquer usuário autenticado; preço e catálogo (serviços)
   restritos ao administrador — sempre verificado no servidor.
 
+### Etapa 6 — Integração com WhatsApp
+
+- **WhatsApp Business Cloud API (Meta)** oficial — nada de scraping,
+  QR code ou automação não suportada; provedor abstraído (mock em
+  desenvolvimento, Meta em produção).
+- **Configuração por empresa** com teste de conexão e
+  desconectar/reconectar; credenciais somente no servidor, nunca em
+  resposta ou log.
+- **Templates de mensagem** com variáveis `{{n}}`, aprovação interna e
+  ativação — envio valida template aprovado no servidor.
+- **Consentimento auditável** por cliente (opt-in registrado pelo
+  administrador, opt-out por qualquer usuário ou pela resposta "SAIR");
+  sem consentimento ativo, nenhum envio acontece.
+- **Fila de envio com retentativas:** mensagens são enfileiradas
+  (`PENDING`) e entregues por um worker próprio com backoff exponencial
+  (até 3 tentativas), taxa limitada por ciclo e histórico completo de
+  tentativas — falha transitória nunca perde a mensagem.
+- **Webhook oficial da Meta** com verificação de assinatura
+  (`x-hub-signature-256`), idempotência por evento e atualização de
+  status (enviado/entregue/lido/falhou).
+- **Gestão em `/whatsapp`:** status da conexão, templates, fila de
+  mensagens com filtros e detalhe de cada envio.
+
 ---
 
 ## Roadmap — as 9 etapas
@@ -113,10 +136,9 @@ concluída.
 | **3** | Vendas e ponto de venda (PDV) | **Concluída** |
 | **4** | Caixa e financeiro | **Concluída** |
 | **5** | Clientes, pets e serviços | **Concluída** |
-| **6** | Agendamentos | **Próxima** |
-| **6** | Agendamentos | Planejada |
-| **7** | Automação de atendimento no WhatsApp | Planejada |
-| **8** | Dashboard e relatórios gerenciais | Planejada |
+| **6** | Integração com WhatsApp (Cloud API) | **Concluída** |
+| **7** | Dashboard e relatórios gerenciais | **Próxima** |
+| **8** | Agendamentos | Planejada |
 | **9** | Assinaturas e gestão comercial | Planejada |
 
 > O escopo detalhado de cada etapa futura é definido no início da etapa
@@ -137,14 +159,12 @@ concluída.
 | **Sessões seguras** | Cookie `HttpOnly` com hash SHA-256 no banco; revogação no logout e ao inativar usuários |
 | **Concorrência tratada** | Trava pessimista (`FOR UPDATE`) em ordem fixa: caixa → produtos — vendas simultâneas nunca corrompem saldo |
 
-**Evidências de verificação (Etapa 5):**
+**Evidências de verificação (Etapa 6):**
 
-- `190` testes automatizados em PostgreSQL real — **190 aprovados**
+- `251` testes automatizados em PostgreSQL real — **251 aprovados**
+  (61 novos de WhatsApp: fila, webhook, consentimento, provedor mock)
 - `npm run lint` — 0 erros · `npm run typecheck` — 4 workspaces OK
-- `npm run build` — API, web e worker compilando · `npm run db:validate` — schema válido
-- Validação E2E manual — **40/40 verificações** (inclui normalizações,
-  bloqueio de cliente duplicado, venda com cliente e venda rápida sem
-  cliente)
+- `npm run build` — API, web (27 rotas) e worker compilando · `npm run db:validate` — schema válido
 
 ---
 

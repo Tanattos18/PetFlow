@@ -7,7 +7,9 @@ import { AllExceptionsFilter } from "./common/filters/all-exceptions.filter";
 import { env, allowedOrigins } from "./config/env";
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: necessário para validar a assinatura X-Hub-Signature-256
+  // do webhook do WhatsApp (Etapa 6)
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   const logger = new Logger("Bootstrap");
 
   app.setGlobalPrefix("api", { exclude: ["health"] });
