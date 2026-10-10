@@ -132,6 +132,7 @@ vazio (`ticketAverage: null`).
 - `f81db3c` feat(etapa-6): integra WhatsApp Cloud API com fila, webhook e frontend
 - `4e902d0` docs: registra hash do commit da etapa 6
 - `2287bec` docs: registra push da etapa 6
+- `f81a077` feat(etapa-7): implementa dashboard e relatorios com agregacao server-side
 - Push confirmado: `4e902d0..2287bec main -> main` (inclui a Etapa 6;
   push anterior `e7bfd34..4e902d0`).
 
