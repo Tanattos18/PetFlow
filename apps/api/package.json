@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/main.ts",
     "bootstrap:admin": "tsx src/cli/bootstrap-admin.ts",
+    "seed:demo": "tsx src/cli/seed-demo.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit -p tsconfig.json"

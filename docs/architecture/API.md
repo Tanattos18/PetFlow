@@ -24,6 +24,7 @@ inclui `issues[]`).
 | Método | Rota | Acesso | Descrição |
 |---|---|---|---|
 | POST | `/api/auth/login` | público | Email+senha; retorna cookie HttpOnly |
+| POST | `/api/auth/register` | público (flag) | Cria empresa nova + administrador e loga (201); só responde quando `REGISTRATION_ENABLED=true` (senão 404), rate limit por IP (`register|ip`), email global único → 409, slug único gerado do nome da empresa |
 | POST | `/api/auth/reset-password` | público (flag) | Redefine a senha pelo email digitado; só responde quando `PASSWORD_RESET_ENABLED=true` (senão 404), com rate limit próprio (`reset|ip|email`); usuário inativo/inexistente → 404, email em múltiplas contas → 400; revoga as sessões abertas do usuário |
 | POST | `/api/auth/logout` | sessão | Revoga a sessão atual |
 | GET | `/api/auth/me` | sessão | Usuário + empresa autenticados |

@@ -146,6 +146,30 @@ tests/        → testes compartilhados/integração
 - Frontend consome a API via rewrites do Next (`/api/:path*` →
   `http://localhost:3001/api/...`), mantendo mesmos domínios/cookies.
 
+## Acesso pós-Etapa 9 — redefinição de senha e cadastro (2026-10-10)
+
+- **Flags de ambiente** regem os fluxos públicos de acesso; padrão no
+  código é **desabilitado** (`false`), `true` apenas em `.env`
+  local, `.env.example` e `tests/setup-env.ts`:
+  - `PASSWORD_RESET_ENABLED` → `POST /api/auth/reset-password` +
+    página `/redefinir-senha` (fluxo local, **sem token de e-mail**;
+    rate limit `reset|ip|email`; troca de hash + revogação de todas
+    as sessões na mesma transação).
+  - `REGISTRATION_ENABLED` → `POST /api/auth/register` + página
+    `/cadastro` (cria **empresa nova** com o usuário como ADMIN e
+    loga automaticamente; rate limit por IP `register|ip`; e-mail
+    global único → 409; slug único gerado do nome da empresa).
+- Sessão compartilhada em `AuthService.createSession()`: login e
+  registro usam o mesmo caminho (token 32 bytes, hash SHA-256 em
+  `Session`, cookie `HttpOnly`).
+- Rotas públicas novas sempre via `@Public()` + flag + rate limit
+  próprio (o rate limit de login continua exclusivo de login).
+- Em produção: manter as flags desligadas até existir token por
+  e-mail na redefinição e verificação de e-mail/anti-abuso no
+  cadastro (pendências registradas em PROJECT_STATUS).
+- Seed de demonstração (`db:seed:demo`) roda em transação única, só
+  em empresa vazia, e nunca em produção.
+
 ## Módulo produtos/estoque (Etapa 2)
 
 - **Saldo materializado** em `Product.stockQuantity` (Decimal 12,3), com

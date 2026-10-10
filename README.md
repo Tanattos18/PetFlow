@@ -330,18 +330,39 @@ com `npm run bootstrap:admin`.
 
 1. Abra `http://localhost:3000` e entre com o e-mail/senha do
    administrador definidos no `.env` (`BOOTSTRAP_ADMIN_*`).
-2. **Esqueceu a senha ou é a primeira vez?** Na tela de login, use o
+2. **Ainda não tem conta?** Na tela de login, use **"Cadastre-se"**
+   (`/cadastro`): informe nome da empresa, seu nome, e-mail e senha —
+   o sistema cria uma empresa nova com você como administrador e entra
+   automaticamente (recurso local, ativado com
+   `REGISTRATION_ENABLED=true` no `.env`).
+3. **Esqueceu a senha?** Na tela de login, use o
    link **"Não consegue entrar? Defina sua senha"** → informe o e-mail
    do usuário e a senha que você quer usar (recurso local, ativado com
    `PASSWORD_RESET_ENABLED=true` no `.env`; as sessões antigas são
    encerradas).
-3. A **home** mostra a empresa, o seu papel e os cards de todos os
+4. A **home** mostra a empresa, o seu papel e os cards de todos os
    módulos — cada card leva direto à área correspondente.
-4. Para criar os demais usuários: `/usuarios` → **somente o
+5. Para criar os demais usuários: `/usuarios` → **somente o
    administrador** define nome, e-mail, senha e perfil (administrador ou
    membro).
-5. Sessão é pessoal e revogável: **Sair** encerra no servidor; se a
+6. Sessão é pessoal e revogável: **Sair** encerra no servidor; se a
    sessão expirar, o sistema redireciona para o login automaticamente.
+
+### Dados de demonstração
+
+Para uma apresentação completa ao cliente, popule uma empresa vazia:
+
+```bash
+npm run db:seed:demo -- --company=<slug|id|e-mail-do-admin>
+```
+
+O script (transação única, só roda em empresa sem produtos/clientes)
+cria: categorias, fornecedores, 32 produtos com estoque e alertas,
+24 clientes com 26 pets, 8 serviços, ~44 vendas em 8 sessões de caixa
+(7 fechadas + a aberta do dia), 20 agendamentos, 8 assinaturas, plano
+do tenant no SaaS, templates/consentimentos/mensagens do WhatsApp e um
+**usuário membro de teste**: `atendente@mundopet.test` /
+`SenhaForte123!`.
 
 ### Perfis: o que cada um faz
 
@@ -466,7 +487,7 @@ Na ordem recomendada:
 | Rota | Para quê | Quem usa |
 |---|---|---|
 | `/` | Home com cards de todos os módulos | todos |
-| `/login`, `/redefinir-senha` | Entrar e definir/recuperar a senha | todos |
+| `/login`, `/cadastro`, `/redefinir-senha` | Entrar, criar conta e definir/recuperar a senha | todos |
 | `/usuarios` | Gerenciar contas e perfis | admin |
 | `/clientes`, `/pets` | Tutores e animais | todos |
 | `/servicos` | Catálogo de serviços (preço/duração) | admin escreve |

@@ -2,8 +2,12 @@
 
 ## Etapa atual
 
-**Etapa 9 — Assinaturas e gestão comercial** — CONCLUÍDA
-(aguardando aprovação do proprietário para avançar).
+**Etapa 9 — Assinaturas e gestão comercial** — CONCLUÍDA.
+
+**Pós-Etapa 9 (2026-10-10)** — entregas de acesso e demonstração
+CONCLUÍDAS: redefinição de senha pelo painel, cadastro aberto de
+contas, seed de demonstração e guia de uso no README. Aguardando
+direção do proprietário para a próxima etapa.
 
 Data: 2026-10-10.
 
@@ -64,6 +68,39 @@ cancelamento com motivo obrigatório (cliente) e opcional (billing).
       Assinaturas"; DTOs E9 em `lib/types.ts`.
 - [x] `resetDatabase` cobre `Subscription` e `TenantSubscription`.
 
+## Entregas concluídas (pós-Etapa 9 — 2026-10-10)
+
+- [x] **Redefinição de senha pelo painel**: endpoint público
+      `POST /api/auth/reset-password` (só com
+      `PASSWORD_RESET_ENABLED=true`, senão 404; rate limit
+      `reset|ip|email`; política 8..72; 404 inexistente/inativo, 400
+      conta duplicada; troca de hash + revogação de sessões na mesma
+      transação), página `/redefinir-senha` e link no login;
+      `tests/password-reset.test.ts` (7).
+- [x] **Cadastro aberto de contas**: endpoint público
+      `POST /api/auth/register` (201; só com
+      `REGISTRATION_ENABLED=true`, senão 404; rate limit por IP
+      `register|ip`; email global único → 409; slug único gerado do
+      nome; cria empresa + administrador e loga automaticamente),
+      página `/cadastro` e link "Cadastre-se" no login; refatoração
+      de sessão em `AuthService.createSession()` (login + registro);
+      `tests/register.test.ts` (6).
+- [x] **Seed de demonstração**: `apps/api/src/cli/seed-demo.ts`
+      (`npm run db:seed:demo -- --company=<slug|id|e-mail>`), roda em
+      transação única e **só em empresa vazia**; aplicado na empresa
+      "Mundo Pet" (6 categorias, 5 fornecedores, 32 produtos, 24
+      clientes, 26 pets, 8 serviços, 4 planos, 44 vendas, 8 sessões
+      de caixa, 20 agendamentos, 8 assinaturas, tenant Profissional,
+      WhatsApp completo); integridade conferida (estoque×movimentos,
+      totais de venda, saldos/diferenças de caixa,
+      `startLocal`×`startAt`).
+- [x] **README**: guia "Como usar o sistema" (primeiro acesso com
+      cadastro/redefinição, perfis, rotina, receitas por módulo,
+      mapa de páginas) e seção "Dados de demonstração".
+- [x] Flags `PASSWORD_RESET_ENABLED`/`REGISTRATION_ENABLED` (padrão
+      desabilitado) em `env.ts`, `.env.example`, `.env` local e
+      `tests/setup-env.ts`.
+
 ## Testes executados
 
 | Verificação | Comando | Resultado |
@@ -71,19 +108,27 @@ cancelamento com motivo obrigatório (cliente) e opcional (billing).
 | Schema Prisma válido | `npm run db:validate` | OK |
 | Lint | `npm run lint` | OK (0 erros) |
 | Typecheck | `npm run typecheck` | OK (5 workspaces) |
-| Testes (PostgreSQL real) | `npm test` | 367/367 aprovados (16 arquivos) |
+| Testes (PostgreSQL real) | `npm test` | 380/380 aprovados (18 arquivos) |
 | Build | `npm run build` | OK (shared, whatsapp, api, web, worker) |
 | Varredura de segredos | grep de credenciais | sem achados reais |
+| Seed de demonstração | `db:seed:demo` + script de integridade | OK (INTEGRIDADE OK) |
 
-Cobertura dos testes novos (30): `tests/subscriptions.test.ts` (18) —
-CRUD de planos (nome duplicado 409, escrita só ADMIN, cross-tenant
-404), criação de assinatura (validações, cliente/plano inativos,
-`registerPayment` com caixa aberto e 409 fechado), listagem com
-filtros, renovação (período, contador, movimento de caixa, cancelada
-409, caixa fechado 409) e cancelamento (motivo obrigatório, duplo
-409); `tests/billing.test.ts` (12) — catálogo global, GET 404,
+Cobertura dos testes novos (30, Etapa 9): `tests/subscriptions.test.ts`
+(18) — CRUD de planos (nome duplicado 409, escrita só ADMIN,
+cross-tenant 404), criação de assinatura (validações, cliente/plano
+inativos, `registerPayment` com caixa aberto e 409 fechado), listagem
+com filtros, renovação (período, contador, movimento de caixa,
+cancelada 409, caixa fechado 409) e cancelamento (motivo obrigatório,
+duplo 409); `tests/billing.test.ts` (12) — catálogo global, GET 404,
 upsert/troca de plano (reinicia período, valida plano), renew
 (cancelada 409, expiração lazy), cancel (duplo 409) e guards ADMIN.
+
+Cobertura dos testes novos (13, pós-Etapa 9):
+`tests/password-reset.test.ts` (7) — 404 com flag desligada, 400
+validação, 404 inexistente, 400 conta duplicada, sucesso + sessão
+antiga revogada, rate limit; `tests/register.test.ts` (6) — criação
+com auto-login e login em seguida, slug único, 409 e-mail duplicado,
+400 política de senha, 404 com flag desligada, rate limit por IP.
 
 ## Pendências conhecidas
 
@@ -131,6 +176,10 @@ upsert/troca de plano (reinicia período, valida plano), renew
   token de e-mail (flag `PASSWORD_RESET_ENABLED` + rate limit) — em
   produção, manter a flag desabilitada e implementar redefinição com
   token enviado por e-mail.
+- **Cadastro aberto** (pós-Etapa 9): cria tenant sem verificação de
+  email nem anti-abuso além do rate limit por IP (flag
+  `REGISTRATION_ENABLED`) — em produção, avaliar verificação de
+  email/captcha antes de habilitar.
 - CI e deploy (contínuos).
 
 ## Git
@@ -157,14 +206,16 @@ upsert/troca de plano (reinicia período, valida plano), renew
 - `fcd468b` docs: registra push da etapa 8
 - `7e7c1bb` feat(etapa-9): implementa assinaturas de clientes e billing do saas
 - `a25f533` docs: registra hash do commit da etapa 9
+- `d42d8c0` feat: adiciona redefinicao de senha pelo painel e guia de uso no readme
 - Push confirmado: `fcd468b..a25f533 main -> main` (inclui a Etapa 9).
 - Push anterior: `671b3d6..fcd468b main -> main` (inclui a Etapa 8).
 
 ## Próxima etapa autorizada
 
-**Nenhuma — as 9 etapas do roadmap estão concluídas.**
-Próximos passos possíveis (aguardando decisão do proprietário):
-pendências acima (CI/deploy, enforcement de billing, gateway de
-pagamento, recorrência automática) ou novas funcionalidades fora do
-roadmap; `prompt oficial da Etapa 9` não foi localizado em
-`Etapas_projeto/` — escopo aprovado na conversa.
+**Nenhuma — as 9 etapas do roadmap e as entregas pós-Etapa 9
+(redefinição de senha, cadastro aberto, seed de demonstração, guia de
+uso) estão concluídas.** Próximos passos possíveis (aguardando decisão
+do proprietário): pendências acima (CI/deploy, enforcement de billing,
+gateway de pagamento, recorrência automática, verificação de e-mail e
+anti-abuso no cadastro), continuidade das atualizações/testes ou novas
+funcionalidades fora do roadmap.

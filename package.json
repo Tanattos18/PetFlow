@@ -21,6 +21,7 @@
     "typecheck": "npm run build:shared && npm run build:whatsapp && npm run typecheck --workspace @petflow/api && npm run typecheck --workspace @petflow/web && npm run typecheck --workspace @petflow/worker",
     "test": "npm run build:shared && npm run build:whatsapp && vitest run",
     "bootstrap:admin": "npm run build:shared && npm run bootstrap:admin --workspace @petflow/api",
+    "db:seed:demo": "npm run seed:demo --workspace @petflow/api --",
     "db:validate": "prisma validate --schema database/prisma/schema.prisma",
     "db:generate": "prisma generate --schema database/prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema database/prisma/schema.prisma",

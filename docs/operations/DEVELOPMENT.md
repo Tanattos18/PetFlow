@@ -34,6 +34,7 @@ O `.env` não é versionado. O `.env.example` contém apenas exemplos não secre
 | `AUTH_COOKIE_SECURE` | `true` em produção (cookie `Secure`) |
 | `BOOTSTRAP_COMPANY_NAME`, `BOOTSTRAP_COMPANY_SLUG` | empresa do bootstrap |
 | `PASSWORD_RESET_ENABLED` | `true` habilita `POST /api/auth/reset-password` e a página `/redefinir-senha` (local/controllado; padrão desabilitado) |
+| `REGISTRATION_ENABLED` | `true` habilita `POST /api/auth/register` e a página `/cadastro` — cria empresa nova + administrador (local/controllado; padrão desabilitado) |
 | `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` | primeiro administrador |
 
 ### Variáveis de ambiente (Etapa 6 — WhatsApp)
@@ -88,7 +89,13 @@ npm run typecheck    # TypeScript em todos os workspaces
 npm test             # Vitest (testes compartilhados em tests/)
 npm run build        # build de todos os workspaces
 npm run db:validate  # valida o schema Prisma (requer DATABASE_URL no .env ou no ambiente)
+npm run db:seed:demo -- --company=<slug|id|email-do-admin>  # popula empresa VAZIA com dados de demonstração
 ```
+
+Atenção: **`npm run build` e `npm run dev:web` não devem rodar ao mesmo
+tempo** — ambos escrevem em `apps/web/.next` e o cache fica corrompido
+(erro `Cannot find module './NNNN.js'`). Se acontecer: pare o `dev:web`,
+apague `apps/web/.next` e reinicie o `dev:web`.
 
 ## Health check
 

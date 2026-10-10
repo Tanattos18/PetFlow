@@ -19,6 +19,8 @@ process.env.DATABASE_URL = testDatabaseUrl();
 process.env.AUTH_COOKIE_SECURE = "false";
 // Redefinição de senha pelo painel: habilitada nos testes
 process.env.PASSWORD_RESET_ENABLED = "true";
+// Cadastro aberto (/cadastro): habilitado nos testes
+process.env.REGISTRATION_ENABLED = "true";
 // WhatsApp (Etapa 6): provedor mock + segredos locais conhecidos para os
 // testes assinarem os webhooks (nunca valores reais)
 process.env.WHATSAPP_PROVIDER = "mock";

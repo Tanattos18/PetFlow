@@ -13,9 +13,11 @@ import {
 import type { Request, Response } from "express";
 import {
   loginSchema,
+  registerSchema,
   resetPasswordSchema,
   type LoginInput,
   type MeResponse,
+  type RegisterInput,
   type ResetPasswordInput,
 } from "@petflow/shared";
 import { Public } from "../common/decorators/public.decorator";
@@ -45,6 +47,29 @@ export class AuthController {
     this.rateLimiter.check(rateKey);
 
     const result = await this.authService.login(body, request);
+    this.rateLimiter.reset(rateKey);
+    this.authService.setSessionCookie(response, result.token);
+
+    return { user: result.user, company: result.company } satisfies MeResponse;
+  }
+
+  @Public()
+  @Post("register")
+  @HttpCode(201)
+  async register(
+    @Body(new ZodValidationPipe(registerSchema)) body: RegisterInput,
+    @Ip() ip: string,
+    @Req() request: Request,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    if (!env.REGISTRATION_ENABLED) {
+      throw new NotFoundException("Recurso indisponível");
+    }
+
+    const rateKey = `register|${ip}`;
+    this.rateLimiter.check(rateKey);
+
+    const result = await this.authService.register(body, request);
     this.rateLimiter.reset(rateKey);
     this.authService.setSessionCookie(response, result.token);
 

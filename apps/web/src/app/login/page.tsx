@@ -117,6 +117,12 @@ export default function LoginPage() {
             Não consegue entrar? Defina sua senha
           </Link>
         </p>
+        <p className="mt-2 text-center text-sm text-slate-500">
+          Não tem conta?{" "}
+          <Link href="/cadastro" className="text-teal-700 hover:underline">
+            Cadastre-se
+          </Link>
+        </p>
       </div>
     </div>
   );

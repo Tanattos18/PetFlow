@@ -52,6 +52,19 @@ export const resetPasswordSchema = z.object({
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
+export const registerSchema = z.object({
+  companyName: z
+    .string()
+    .trim()
+    .min(2, "Nome da empresa deve ter ao menos 2 caracteres")
+    .max(120),
+  name: z.string().trim().min(2, "Nome deve ter ao menos 2 caracteres").max(120),
+  email: emailFieldSchema,
+  password: passwordFieldSchema,
+});
+
+export type RegisterInput = z.infer<typeof registerSchema>;
+
 export const createUserSchema = z.object({
   name: z.string().trim().min(2, "Nome deve ter ao menos 2 caracteres").max(120),
   email: emailFieldSchema,

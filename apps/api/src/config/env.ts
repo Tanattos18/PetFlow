@@ -24,6 +24,13 @@ const schema = z.object({
     .string()
     .optional()
     .transform((value) => value === "true"),
+  // Cadastro aberto (/cadastro) — cria empresa nova + administrador.
+  // Desabilitado por padrão; habilitar apenas onde o registro público for
+  // desejado (local/controllado; sem verificação anti-abuso nesta versão)
+  REGISTRATION_ENABLED: z
+    .string()
+    .optional()
+    .transform((value) => value === "true"),
   APP_ORIGINS: z.string().default("http://localhost:3000"),
   // WhatsApp (Etapa 6) — segredos somente aqui, nunca no frontend/Git
   WHATSAPP_PROVIDER: z.enum(["mock", "meta"]).default("mock"),

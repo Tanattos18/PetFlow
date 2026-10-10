@@ -433,6 +433,29 @@ caixa/venda existente").
       ARCHITECTURE, DEVELOPMENT, README)
 - [x] Commit e push (ver relatório final / PROJECT_STATUS)
 
+## Pós-Etapa 9 — acesso e demonstração (2026-10-10)
+
+- [x] **Redefinição de senha pelo painel**: `POST /api/auth/reset-password`
+       (flag `PASSWORD_RESET_ENABLED`, rate limit, transação com
+       revogação de sessões), página `/redefinir-senha`, link no login,
+       7 testes em `tests/password-reset.test.ts`
+- [x] **Cadastro aberto**: `POST /api/auth/register` (flag
+       `REGISTRATION_ENABLED`, rate limit por IP, empresa nova + admin,
+       auto-login), página `/cadastro`, link "Cadastre-se", refactor
+       `AuthService.createSession()`, 6 testes em `tests/register.test.ts`
+- [x] **Seed de demonstração**: `apps/api/src/cli/seed-demo.ts`
+       (`db:seed:demo`, transação única, só em empresa vazia); roda
+       aplicado na empresa "Mundo Pet" com verificação de integridade
+       (estoque, totais, caixa, agenda)
+- [x] **README**: guia "Como usar o sistema" (primeiro acesso, perfis,
+       rotina, receitas por módulo, mapa de páginas) + "Dados de
+       demonstração"
+- [x] Testes: 380/380 aprovados em PostgreSQL real (18 arquivos)
+- [x] `npm run lint`, `npm run typecheck`, `npm run build` OK
+- [x] Documentação atualizada (CHANGELOG, STATUS, DEVELOPMENT, API,
+       ARCHITECTURE, README, IMPLEMENTATION_CHECKLIST)
+- [x] Commit e push (ver PROJECT_STATUS — Git)
+
 ## Etapas futuras — módulos de negócio
 
 - [x] Cadastro de clientes e animais (Etapa 5)

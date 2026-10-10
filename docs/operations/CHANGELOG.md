@@ -2,6 +2,64 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Não categorizado] - 2026-10-10 - Seed de demonstração
+
+### Adicionado
+
+- **`apps/api/src/cli/seed-demo.ts`** (`npm run db:seed:demo --
+  --company=<slug|id|email>`): popula uma empresa vazia com dados
+  realistas de demonstração em **uma única transação** — 6 categorias,
+  5 fornecedores, 32 produtos (com entradas de estoque e alertas de
+  estoque mínimo), 24 clientes, 26 pets, 8 serviços, 4 planos de
+  assinatura, usuário membro, ~44 vendas em 7 sessões de caixa
+  fechadas + a sessão aberta do dia (itens, movimentos de estoque
+  OUT, lançamentos `SALE`/`SALE_CANCELMENT`, taxas de maquininha,
+  contagens de fechamento com diferença), 20 agendamentos (passado e
+  futuro, inclui `NO_SHOW`/`CANCELLED`), 8 assinaturas (ATIVA/EXPIRADA/
+  CANCELADA com pagamentos no caixa), assinatura do tenant (plano
+  Profissional), 3 templates + 14 consentimentos + 12 mensagens
+  WhatsApp (inclui `FAILED` com tentativas e `PENDING` futura) e
+  config do WhatsApp.
+- Guard de segurança: só roda em empresa **vazia** (aborta se já houver
+  produtos/clientes), e todos os valores (totais, saldos esperados,
+  diferença de contagem, `startLocal`×`startAt`) são conferidos por
+  integridade antes da entrega.
+- Comando na raiz: `db:seed:demo` (scripts `seed:demo` no workspace
+  `@petflow/api`).
+
+## [Não categorizado] - 2026-10-10 - Cadastro aberto de contas
+
+### Adicionado
+
+- **Cadastro aberto** (`/cadastro`, link "Cadastre-se" na tela de
+  login): o visitante informa nome da empresa, seu nome, email e senha
+  → cria uma **empresa nova (tenant) + usuário administrador** e entra
+  automaticamente no sistema (cookie de sessão na resposta).
+- Endpoint público `POST /api/auth/register` (HTTP 201): só responde
+  quando `REGISTRATION_ENABLED=true` (senão 404), rate limit por IP
+  (`register|ip`, mesmo `LoginRateLimiter`), email único global (409
+  "Este email já está cadastrado" — preserva o login, que exige email
+  sem conta duplicada), slug da empresa gerado do nome com sufixo
+  único (`pet-shop-registro-2`, …), senha 8..72 com hash bcrypt 12.
+- Flag `REGISTRATION_ENABLED` em `apps/api/src/config/env.ts`
+  (padrão: desabilitado), documentada no `.env.example` e habilitada
+  no `.env` local.
+- Refatoração: criação de sessão extraída para
+  `AuthService.createSession()` (reutilizada por login e registro).
+- Frontend: página `/cadastro` com validação (campos, senha 8..72,
+  confirmação) e erros de campo/servidor; link de cadastro no `/login`.
+- Testes: `tests/register.test.ts` (6) — criação + auto-login + login
+  posterior, slug único, 409 de email, 400 de política, flag
+  desabilitada e rate limit; suíte completa: **380/380 testes em 18
+  arquivos**.
+
+### Segurança (decisão registrada)
+
+- Cadastro público cria tenant sem verificação de email nem
+  anti-abuso (rate limit por IP é a única proteção) — em produção,
+  avaliar verificação de email/captcha antes de habilitar; flag
+  desligada por padrão.
+
 ## [Não categorizado] - 2026-10-10 - Redefinição de senha pelo painel
 
 ### Adicionado
