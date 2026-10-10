@@ -230,7 +230,7 @@ Integração com a **WhatsApp Business Cloud API** (Meta). Webhook é o
 | Método | Rota | Acesso | Descrição |
 |---|---|---|---|
 | GET | `/api/whatsapp/config` | sessão | Configuração da empresa (credenciais **nunca** retornadas; só flag `hasAccessToken`) |
-| PUT | `/api/whatsapp/config` | ADMIN | Salva `phoneNumberId`, `wabaId`, `displayName` |
+| PUT | `/api/whatsapp/config` | ADMIN | Salva `phoneNumberId`, `wabaId`, `displayName` + lembrete (`reminderTemplateId`, `reminderLeadMinutes` — template precisa ter exatamente 3 variáveis) |
 | POST | `/api/whatsapp/config/health` | ADMIN | Testa credencial com o provedor (token sanitizado no erro) |
 | PATCH | `/api/whatsapp/config/status` | ADMIN | `ACTIVE`/`DISCONNECTED` (desconectar bloqueia envios) |
 | GET | `/api/whatsapp/templates` | sessão | Lista templates da empresa (filtros `status`, `search`) |
@@ -267,19 +267,19 @@ Comportamentos importantes:
 
 ## Relatórios e dashboard (Etapa 7)
 
-Agregação **server-side** sobre os dados reais das Etapas 1–6 — nada
+Agregação **server-side** sobre os dados reais das Etapas 1–8 — nada
 é calculado no navegador e nenhum dado fictício é retornado. Todos os
 endpoints exigem apenas sessão (leitura), `companyId` vem sempre do
 contexto autenticado e aceitam `from`/`to` em `YYYY-MM-DD`.
 
 | Método | Rota | Acesso | Descrição |
 |---|---|---|---|
-| GET | `/api/reports/summary` | sessão | KPIs: vendas (concluídas/canceladas, líquido/bruto/descontos, ticket médio), vendas por dia e por forma de pagamento, caixa (sessão aberta + `inCash`/totais), estoque (baixo/zerado), clientes/pets novos, WhatsApp por status, `modules.servicesRealized` |
+| GET | `/api/reports/summary` | sessão | KPIs: vendas (concluídas/canceladas, líquido/bruto/descontos, ticket médio), vendas por dia e por forma de pagamento, caixa (sessão aberta + `inCash`/totais), estoque (baixo/zerado), clientes/pets novos, WhatsApp por status, agendamentos por status (`services`), `modules.servicesRealized` |
 | GET | `/api/reports/sales` | sessão | Totais separados concluídas × canceladas + lista paginada; filtros `from`, `to`, `status`, `paymentMethod`, `page`, `pageSize`, `format` |
 | GET | `/api/reports/stock/alerts` | sessão | Produtos sem estoque ou no mínimo (inativos excluídos); `page`, `pageSize`, `format` |
 | GET | `/api/reports/stock/movements` | sessão | Totais por tipo (zero-fill) + lista; filtros `productId`, `type`, período, paginação, `format` |
 | GET | `/api/reports/cash` | sessão | `inCash` vs todos, estornos por origem, sessões abertas/fechadas no período |
-| GET | `/api/reports/clients` | sessão | Clientes e pets novos no período + pets por espécie |
+| GET | `/api/reports/clients` | sessão | Clientes e pets novos no período + pets por espécie + agendamentos por status (`services`) |
 | GET | `/api/reports/whatsapp` | sessão | Contagem por status atual + falhas agrupadas por motivo |
 
 Comportamentos importantes:
@@ -294,9 +294,11 @@ Comportamentos importantes:
   evitar surpresa de consumo.
 - **Ticket médio** = líquido ÷ vendas concluídas com 2 casas; sem
   vendas no período o campo volta `null` (nunca `0` fingindo dado).
-- **Serviços realizados**: módulo `servicesRealized` vem sempre com
-  `available: false` + motivo — não existe estado de realização
-  antes da Etapa 8.
+- **Serviços realizados**: `summary.modules.servicesRealized` vem
+  com `available: true` desde a Etapa 8; `summary.services` e
+  `clients.services` trazem contagens de agendamentos por status
+  (zero-fill) no período — filtros de status em `/clients` não
+  existem.
 - **WhatsApp**: contagem pelo status **atual** do registro;
   `ACCEPTED` (aceito pela API Meta) não é `DELIVERED`.
 - **CSV** (`format=csv` em sales, stock/alerts, stock/movements):
@@ -307,6 +309,49 @@ Comportamentos importantes:
   **ignora paginação**; exige sessão (401 sem cookie).
 - Recurso de outra empresa nunca aparece (404/escopo); parâmetro
   `companyId` enviado pelo cliente é **ignorado**.
+
+## Agendamentos (Etapa 8)
+
+Sessão autenticada — **sem `AdminGuard`**: agenda é operação diária e
+também membros criam/editam. `companyId` sempre da sessão.
+
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| POST | `/api/appointments` | sessão | Cria (201): `clientId`, `petId`, `serviceId`, `startLocal` (`YYYY-MM-DDTHH:mm`), `utcOffsetMinutes`, `notes?` |
+| GET | `/api/appointments` | sessão | Lista; filtros `from`, `to` (dia em `startLocal`), `status`, `clientId`, `petId`, `serviceId`, `search`, `page`, `pageSize` |
+| GET | `/api/appointments/:id` | sessão | Detalhe (404 cross-tenant) |
+| PATCH | `/api/appointments/:id` | sessão | Edição parcial/reagendamento (apenas status não-terminal) |
+| PATCH | `/api/appointments/:id/status` | sessão | `CONFIRMED`, `COMPLETED` ou `NO_SHOW` (terminal → 409) |
+| POST | `/api/appointments/:id/cancel` | sessão | Cancela (201): `reason` 3..500 obrigatório; terminal → 409 |
+
+Comportamentos importantes:
+
+- **Horário calculado no servidor**: `startAt`/`endAt` derivam de
+  `startLocal` + `utcOffsetMinutes` (leste-positivo, ±840 min — o
+  cliente envia `-getTimezoneOffset()`); `durationMinutes` vem do
+  serviço (`1..1440`, obrigatório). Passado (tolerância 60 s) → **400**.
+- **Conflito da empresa inteira**: em transação com
+  `SELECT ... FOR UPDATE` na `Company` (mesmo padrão da sessão de
+  caixa), qualquer `SCHEDULED`/`CONFIRMED` sobreposto
+  (`startAt < end AND endAt > start`) → **409**; fim-início exato
+  permitido; `COMPLETED`/`CANCELLED`/`NO_SHOW` não bloqueiam; a
+  edição exclui o próprio registro da checagem.
+- **Validações**: cliente ativo, pet do cliente, serviço ativo, todos
+  da empresa (cross-tenant → 404); `endAt` sempre derivado (nunca
+  vem do cliente).
+- **Lembrete automático** (`syncReminder`, mesma transação do CRUD):
+  enfileira `WhatsAppMessage` com chave `appointment-reminder:<id>`
+  (`origin: SERVICE_REMINDER`, única por empresa),
+  `nextAttemptAt = max(now, startAt − reminderLeadMinutes)` e
+  variáveis `[pet ou tutor, serviço, "dd/mm/aaaa às HH:mm"]`;
+  revalida config ≠ `DISCONNECTED`, template selecionado
+  `APPROVED`/ativo com 3 variáveis, telefone E.164 e consentimento
+  `OPTED_IN`; reagendar atualiza a pendente, cancelar/concluir/inelegível
+  cancela com motivo; falha de lembrete só loga — o CRUD nunca falha.
+- Campos de lembrete também em `GET/PUT /api/whatsapp/config`:
+  `reminderTemplateId` (template da empresa com exatamente 3
+  variáveis → 400 caso contrário) e `reminderLeadMinutes`
+  (5..40320, default 1440).
 
 ## Padrão para módulos futuros
 

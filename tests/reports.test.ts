@@ -679,10 +679,17 @@ describe("GET /api/reports/summary", () => {
     expect(whatsapp.read).toBe(0);
   });
 
-  it("módulo de serviços realizados é explicitamente indisponível", async () => {
+  it("módulo de serviços realizados fica disponível com contagens da Etapa 8", async () => {
     const response = await get("/api/reports/summary", adminACookie);
-    expect(response.body.modules.servicesRealized.available).toBe(false);
-    expect(response.body.modules.servicesRealized.reason).toContain("Etapa 8");
+    expect(response.body.modules.servicesRealized.available).toBe(true);
+    expect(response.body.modules.servicesRealized.reason).toBeNull();
+    expect(response.body.services).toEqual({
+      scheduled: 0,
+      confirmed: 0,
+      completed: 0,
+      cancelled: 0,
+      noShow: 0,
+    });
   });
 
   it("valida período: data final anterior, intervalo longo e data inválida", async () => {
@@ -1002,7 +1009,13 @@ describe("GET /api/reports/clients", () => {
     );
     expect(bySpecies.DOG).toBe(2);
     expect(bySpecies.CAT).toBe(1);
-    expect(response.body.servicesRealized.available).toBe(false);
+    expect(response.body.services).toEqual({
+      scheduled: 0,
+      confirmed: 0,
+      completed: 0,
+      cancelled: 0,
+      noShow: 0,
+    });
   });
 
   it("isolamento: contagens de outra empresa separadas", async () => {

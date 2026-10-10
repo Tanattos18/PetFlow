@@ -13,6 +13,7 @@ import { CashModule } from "./cash/cash.module";
 import { ClientsModule } from "./clients/clients.module";
 import { PetsModule } from "./pets/pets.module";
 import { ServicesModule } from "./services/services.module";
+import { AppointmentsModule } from "./appointments/appointments.module";
 import { WhatsAppModule } from "./whatsapp/whatsapp.module";
 import { ReportsModule } from "./reports/reports.module";
 import { AuthGuard } from "./common/guards/auth.guard";
@@ -31,6 +32,7 @@ import { AuthGuard } from "./common/guards/auth.guard";
     ClientsModule,
     PetsModule,
     ServicesModule,
+    AppointmentsModule,
     WhatsAppModule,
     ReportsModule,
   ],

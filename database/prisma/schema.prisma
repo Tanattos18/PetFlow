@@ -148,6 +148,14 @@ enum WhatsAppWebhookKind {
   OTHER
 }
 
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
 model Company {
   id        String        @id @default(cuid())
   name      String
@@ -171,6 +179,7 @@ model Company {
   whatsappMessages     WhatsAppMessage[]
   whatsappConsents     WhatsAppConsent[]
   whatsappWebhookEvents WhatsAppWebhookEvent[]
+  appointments         Appointment[]
 }
 
 model User {
@@ -196,6 +205,8 @@ model User {
   whatsappConsentsUpdated  WhatsAppConsent[]
   whatsappMessagesCreated  WhatsAppMessage[] @relation("WhatsAppMessageCreatedBy")
   whatsappMessagesCancelled WhatsAppMessage[] @relation("WhatsAppMessageCancelledBy")
+  appointmentsCreated      Appointment[] @relation("AppointmentCreatedBy")
+  appointmentsCancelled    Appointment[] @relation("AppointmentCancelledBy")
 
   @@unique([companyId, email])
   @@index([companyId, status])
@@ -276,6 +287,7 @@ model Client {
   sales      Sale[]
   whatsappConsent WhatsAppConsent?
   whatsappMessages WhatsAppMessage[]
+  appointments Appointment[]
 
   @@index([companyId, nameKey])
   @@index([companyId, status])
@@ -303,6 +315,7 @@ model Pet {
   status    RecordStatus @default(ACTIVE)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
+  appointments Appointment[]
 
   @@index([companyId, status])
   @@index([companyId, name])
@@ -322,10 +335,42 @@ model Service {
   status          RecordStatus @default(ACTIVE)
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
+  appointments    Appointment[]
 
   @@unique([companyId, nameKey])
   @@index([companyId, status])
   @@index([companyId, name])
+}
+
+model Appointment {
+  id                String            @id @default(cuid())
+  companyId         String
+  company           Company           @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  clientId          String
+  client            Client            @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  petId             String?
+  pet               Pet?              @relation(fields: [petId], references: [id], onDelete: Restrict)
+  serviceId         String
+  service           Service           @relation(fields: [serviceId], references: [id], onDelete: Restrict)
+  startAt           DateTime
+  endAt             DateTime
+  startLocal        String
+  durationMinutes   Int
+  status            AppointmentStatus @default(SCHEDULED)
+  notes             String?
+  cancelReason      String?
+  cancelledAt       DateTime?
+  cancelledByUserId String?
+  cancelledBy       User?             @relation("AppointmentCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: SetNull)
+  createdByUserId   String
+  createdBy         User              @relation("AppointmentCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([companyId, startLocal])
+  @@index([companyId, status, startAt])
+  @@index([clientId])
+  @@index([petId])
 }
 
 model Product {
@@ -489,6 +534,9 @@ model WhatsAppConfig {
   displayName    String?
   lastError      String?
   lastHealthAt   DateTime?
+  reminderTemplateId  String?
+  reminderTemplate    WhatsAppTemplate? @relation(fields: [reminderTemplateId], references: [id], onDelete: SetNull)
+  reminderLeadMinutes Int                @default(1440)
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
 
@@ -512,6 +560,7 @@ model WhatsAppTemplate {
   createdAt         DateTime                 @default(now())
   updatedAt         DateTime                 @updatedAt
   messages          WhatsAppMessage[]
+  reminderConfigs   WhatsAppConfig[]
 
   @@unique([companyId, nameKey])
   @@index([companyId, status])

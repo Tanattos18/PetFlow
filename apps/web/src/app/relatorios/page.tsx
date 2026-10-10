@@ -874,11 +874,13 @@ function ClientesTab({ from, to, reloadKey }: PeriodProps) {
             <p className="text-sm text-slate-600">pela data de cadastro (UTC)</p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
-            <p className="text-xs uppercase text-slate-400">Serviços realizados</p>
-            <span className="inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-              Módulo não disponível
-            </span>
-            <p className="mt-2 text-xs text-slate-500">{data.servicesRealized.reason}</p>
+            <p className="text-xs uppercase text-slate-400">Agendamentos no período</p>
+            <p className="text-2xl font-semibold text-slate-900">{data.services.completed}</p>
+            <p className="text-sm text-slate-600">concluído(s) pela data/hora de início</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Confirmados: {data.services.confirmed} · Agendados: {data.services.scheduled} ·
+              Cancelados: {data.services.cancelled} · Não compareceu: {data.services.noShow}
+            </p>
           </div>
         </div>
       )}

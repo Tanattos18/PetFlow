@@ -5,9 +5,9 @@ Cadastros de clientes e animais, catálogo de serviços, produtos e estoque,
 vendas e ponto de venda, caixa e financeiro — com permissões por perfil,
 isolamento total entre empresas e trilha de auditoria em cada operação.
 
-> **Status:** 7 de 9 etapas concluídas (mais a fundação técnica do projeto).
-> Etapas 1–7 entregues e verificadas em 09/10/2026 (aguardando aprovação).
-> Próxima etapa: **Etapa 8 — Agendamentos** (escopo a definir na abertura).
+> **Status:** 8 de 9 etapas concluídas (mais a fundação técnica do projeto).
+> Etapas 1–8 entregues e verificadas em 10/10/2026 (aguardando aprovação).
+> Próxima etapa: **Etapa 9 — Assinaturas** (escopo a definir na abertura).
 > Detalhes em [`docs/operations/PROJECT_STATUS.md`](docs/operations/PROJECT_STATUS.md).
 
 ---
@@ -140,11 +140,34 @@ isolamento total entre empresas e trilha de auditoria em cada operação.
 - **Exportação CSV** com aspas padrão, limite de 5000 linhas e
   proteção contra injeção de fórmulas (células iniciadas por
   `=`, `+`, `-`, `@`).
-- **Serviços realizados ficam indisponíveis** até a Etapa 8 — o
-  dashboard nunca inventa dado que o sistema ainda não registra.
+- **Serviços realizados** com contagem real de agendamentos por
+  status desde a Etapa 8 (`summary.services`) — o dashboard nunca
+  inventa dado que o sistema ainda não registra.
 - **Mesmas regras de segurança do restante:** leitura exige sessão,
   cada empresa enxerga apenas os próprios números e o `companyId`
   vem sempre da sessão.
+
+### Etapa 8 — Agendamentos
+
+- **Agenda diária em `/agenda`**: visão por dia com navegação
+  (←/Hoje/→ e seletor de data), filtros de status e busca,
+  paginação, cadastro (`/agenda/novo`), detalhe com transições
+  (`/agenda/[id]`) e edição/reagendamento.
+- **Conflito de horário da empresa inteira**: qualquer janela
+  `SCHEDULED`/`CONFIRMED` sobreposta retorna 409 (fim-início exato
+  permitido; cancelados/concluídos não bloqueiam) — checagem em
+  transação com trava na empresa.
+- **Transições de status** com regras no servidor: confirmar,
+  concluir, marcar `NO_SHOW` ou cancelar com motivo obrigatório;
+  status terminal não é editável.
+- **Lembrete automático de WhatsApp** pela fila já existente
+  (sem alteração do worker): antecedência configurada em
+  `/whatsapp` (template aprovado com exatamente 3 variáveis +
+  consentimento `OPTED_IN`), idempotente por agendamento e
+  revalidado a cada mudança.
+- **Integração com relatórios**: contagem de agendamentos por
+  status no dashboard e em clientes; "serviços realizados" agora
+  disponível.
 
 ---
 
@@ -163,9 +186,8 @@ concluída.
 | **5** | Clientes, pets e serviços | **Concluída** |
 | **6** | Integração com WhatsApp (Cloud API) | **Concluída** |
 | **7** | Dashboard e relatórios gerenciais | **Concluída** |
-| **8** | Agendamentos | **Próxima** |
-| **8** | Agendamentos | Planejada |
-| **9** | Assinaturas e gestão comercial | Planejada |
+| **8** | Agendamentos | **Concluída** |
+| **9** | Assinaturas e gestão comercial | **Próxima** |
 
 > O escopo detalhado de cada etapa futura é definido no início da etapa
 > correspondente e registrado em
@@ -185,10 +207,11 @@ concluída.
 | **Sessões seguras** | Cookie `HttpOnly` com hash SHA-256 no banco; revogação no logout e ao inativar usuários |
 | **Concorrência tratada** | Trava pessimista (`FOR UPDATE`) em ordem fixa: caixa → produtos — vendas simultâneas nunca corrompem saldo |
 
-**Evidências de verificação (Etapa 7):**
+**Evidências de verificação (Etapa 8):**
 
-- `292` testes automatizados em PostgreSQL real — **292 aprovados**
-  (41 novos de relatórios: agregações, fronteiras UTC, CSV, isolamento)
+- `337` testes automatizados em PostgreSQL real — **337 aprovados**
+  (45 novos de agendamentos: conflito, transições, lembretes,
+  isolamento)
 - `npm run lint` — 0 erros · `npm run typecheck` — 4 workspaces OK
 - `npm run build` — API, web e worker compilando · `npm run db:validate` — schema válido
 
@@ -314,4 +337,4 @@ automação do whatsapp/   base existente (preservada, fora do monorepo)
 
 ---
 
-**PetFlow** — 7 de 9 etapas entregues. Próxima: agendamentos.
+**PetFlow** — 8 de 9 etapas entregues. Próxima: assinaturas.

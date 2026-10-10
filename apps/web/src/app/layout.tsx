@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
             <nav>
               <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-medium text-teal-700">
-                Etapa 7 — Dashboard e relatórios
+                Etapa 8 — Agendamentos
               </span>
             </nav>
           </div>

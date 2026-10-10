@@ -5,9 +5,12 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { WhatsAppProviderError } from "@petflow/whatsapp";
-import type {
-  UpdateWhatsAppConfigInput,
-  UpdateWhatsAppConfigStatusInput,
+import {
+  APPOINTMENT_REMINDER_LEAD_DEFAULT,
+  APPOINTMENT_REMINDER_VARIABLE_COUNT,
+  templateVariableCount,
+  type UpdateWhatsAppConfigInput,
+  type UpdateWhatsAppConfigStatusInput,
 } from "@petflow/shared";
 import { PrismaService } from "../prisma/prisma.module";
 import { env } from "../config/env";
@@ -37,6 +40,8 @@ export class WhatsAppConfigService {
         lastError: null,
         lastHealthAt: null,
         updatedAt: null,
+        reminderTemplateId: null,
+        reminderLeadMinutes: APPOINTMENT_REMINDER_LEAD_DEFAULT,
         provider: describe,
         webhook: {
           path: "/api/webhooks/whatsapp",
@@ -54,6 +59,8 @@ export class WhatsAppConfigService {
       lastError: config.lastError,
       lastHealthAt: config.lastHealthAt,
       updatedAt: config.updatedAt,
+      reminderTemplateId: config.reminderTemplateId,
+      reminderLeadMinutes: config.reminderLeadMinutes,
       provider: describe,
       webhook: {
         path: "/api/webhooks/whatsapp",
@@ -68,10 +75,31 @@ export class WhatsAppConfigService {
       where: { companyId: auth.companyId },
     });
 
+    if (input.reminderTemplateId) {
+      const template = await this.prisma.whatsAppTemplate.findFirst({
+        where: { id: input.reminderTemplateId, companyId: auth.companyId },
+        select: { id: true, body: true },
+      });
+      if (!template) {
+        throw new BadRequestException("Template de lembrete não encontrado");
+      }
+      if (templateVariableCount(template.body) !== APPOINTMENT_REMINDER_VARIABLE_COUNT) {
+        throw new BadRequestException(
+          `Template de lembrete deve ter exatamente ${APPOINTMENT_REMINDER_VARIABLE_COUNT} variáveis ({{1}} tutor/pet, {{2}} serviço, {{3}} data e hora)`,
+        );
+      }
+    }
+
     const data = {
       ...(input.phoneNumberId !== undefined ? { phoneNumberId: input.phoneNumberId || null } : {}),
       ...(input.wabaId !== undefined ? { wabaId: input.wabaId || null } : {}),
       ...(input.displayName !== undefined ? { displayName: input.displayName || null } : {}),
+      ...(input.reminderTemplateId !== undefined
+        ? { reminderTemplateId: input.reminderTemplateId || null }
+        : {}),
+      ...(input.reminderLeadMinutes !== undefined
+        ? { reminderLeadMinutes: input.reminderLeadMinutes }
+        : {}),
       lastError: null,
       ...(existing && existing.status === "ERROR" ? { status: "CONFIGURED" as const } : {}),
     };
@@ -83,6 +111,9 @@ export class WhatsAppConfigService {
         phoneNumberId: input.phoneNumberId || null,
         wabaId: input.wabaId || null,
         displayName: input.displayName || null,
+        reminderTemplateId: input.reminderTemplateId || null,
+        reminderLeadMinutes:
+          input.reminderLeadMinutes ?? APPOINTMENT_REMINDER_LEAD_DEFAULT,
       },
       update: data,
     });

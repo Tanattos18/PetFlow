@@ -2,6 +2,112 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Etapa 8] — 2026-10-10 — Agendamentos
+
+### Adicionado
+
+- **Escopo**: módulo de agendamentos com agenda diária, conflito de
+  horário da empresa inteira, transições de status e cancelamento com
+  motivo, lembretes automáticos pela fila WhatsApp existente (worker
+  sem alteração) e integração com dashboard/relatórios. Sem prompt
+  oficial em `Etapas_projeto/` — escopo definido e **aprovado na
+  conversa** com o proprietário; decisões registradas: conflito
+  empresa-inteira, serviços em vendas/PDV fora da etapa, lembretes
+  incluídos e `durationMinutes` obrigatório.
+- Schemas Zod E8 (`@petflow/shared`, seção "Etapa 8"):
+  `appointmentStatusSchema` + labels, `APPOINTMENT_BLOCKING_STATUSES`
+  (SCHEDULED/CONFIRMED) e `APPOINTMENT_TERMINAL_STATUSES`
+  (COMPLETED/CANCELLED/NO_SHOW), `APPOINTMENT_REMINDER_VARIABLE_COUNT=3`,
+  `APPOINTMENT_REMINDER_LEAD_MIN/MAX/DEFAULT` (5/40320/1440),
+  `localDateTimeField` (YYYY-MM-DDTHH:mm + calendário real),
+  `createAppointmentSchema`, `updateAppointmentSchema` (partial),
+  `updateAppointmentStatusSchema` (CONFIRMED|COMPLETED|NO_SHOW),
+  `cancelAppointmentSchema` (motivo 3..500) e
+  `listAppointmentsQuerySchema` (paginação + `from`/`to` +
+  `status`/`clientId`/`petId`/`serviceId`/`search` +
+  `checkReportPeriod`); `updateWhatsAppConfigSchema` ganha
+  `reminderTemplateId` e `reminderLeadMinutes` (5..40320).
+- Migration `20261010115308_etapa8_appointments`: enum
+  `AppointmentStatus`; modelo `Appointment` (FK `Restrict` para
+  `Company`/`Client`/`Pet`/`Service` e `createdByUserId`;
+  `cancelledByUserId` `SetNull`; índices `[companyId, startLocal]`,
+  `[companyId, status, startAt]`, `[clientId]`, `[petId]`);
+  `WhatsAppConfig.reminderTemplateId` (FK → `WhatsAppTemplate`,
+  `SetNull`) + `reminderLeadMinutes Int @default(1440)` e relação
+  `reminderConfigs` no template; aplicada em `petflow` (dev);
+  `npm run db:validate` OK.
+- Módulo `apps/api/src/appointments` (`AppointmentsModule`, prefixo
+  `/api`, somente sessão autenticada — **sem `AdminGuard`**: membro
+  também agenda):
+  - `POST /api/appointments` (201): `startAt`/`endAt` calculados no
+    servidor a partir de `startLocal` + `utcOffsetMinutes` (convenção
+    leste-positivo, ±840 min); recusa horário no passado (tolerância
+    de 60 s); valida cliente ativo, pet do cliente e serviço ativo.
+  - `GET /api/appointments`: filtros `from`/`to` sobre `startLocal`
+    (comparação lexicográfica da hora de parede), `status`, `clientId`,
+    `petId`, `serviceId` e `search` (nome de cliente/pet/serviço);
+    ordenação por `startAt` ascendente; paginação.
+  - `GET /api/appointments/:id` (404 cross-tenant), `PATCH /:id`
+    (campos parciais; reagendamento recalcula `startAt`/`endAt`;
+    apenas status não-terminal).
+  - `PATCH /:id/status` (CONFIRMED/COMPLETED/NO_SHOW; terminal → 409;
+    enum com CANCELLED → 400) e `POST /:id/cancel` (201; motivo
+    obrigatório; cancela via `updateMany` com guarda de status →
+    dupla corrida 409).
+  - **Conflito de empresa inteira**: transação com
+    `SELECT id FROM "Company" WHERE id = $1 FOR UPDATE` (mesmo
+    padrão da sessão de caixa) + sobreposição em SCHEDULED/CONFIRMED
+    (`startAt < endAt AND endAt > startAt`) → 409; fim-início exato
+    permitido; cancelados/concluídos/no-show não bloqueiam; a edição
+    exclui o próprio registro (sobreposição consigo mesmo é aceita).
+- **Lembrete automático** (`syncReminder` em `appointments.service.ts`,
+  reutilizando a fila WhatsApp e o worker da Etapa 6 sem mudanças):
+  chave de idempotência `appointment-reminder:<id>` única por empresa
+  (`@@unique([companyId, idempotencyKey])`), `origin: SERVICE_REMINDER`,
+  `nextAttemptAt = máx(agora, startAt − antecedência)`; variáveis
+  `[pet ou tutor, nome do serviço, "dd/mm/aaaa às HH:mm"]` derivadas
+  do horário local; elegibilidade revalidada a cada mutação (config ≠
+  `DISCONNECTED` + `phoneNumberId` + template selecionado da mesma
+  empresa ativo, `APPROVED` e com exatamente 3 variáveis, cliente
+  ativo com telefone em E.164, consentimento `OPTED_IN`, horário
+  futuro); reagendar atualiza a pendente (sem duplicar), cancelar →
+  `Agendamento cancelado`, concluir/no-show → `Agendamento encerrado`,
+  inelegível → cancela sem criar; corrida `P2002` é ignorada; falha de
+  lembrete só gera log e nunca derruba o CRUD.
+- `GET/PUT /api/whatsapp/config` com `reminderTemplateId` e
+  `reminderLeadMinutes`; o PUT rejeita (400) template de outra
+  empresa ou com número de variáveis ≠ 3 — aprovação é revalidada no
+  enfileiramento.
+- Relatórios E8: `GET /api/reports/summary` ganha `services`
+  (contagens por status, zero-fill, por `startAt` no período) e
+  `modules.servicesRealized` passa a `{available: true, reason: null}`;
+  `GET /api/reports/clients` substitui `servicesRealized` por
+  `services`.
+- Frontend: `/agenda` (visão por dia com navegação ←/Hoje/→ e date
+  picker, filtros de status/busca, paginação), `/agenda/novo`,
+  `/agenda/[id]` (transições e cancelamento com motivo) e
+  `/agenda/[id]/editar`; `components/AppointmentForm.tsx` (clientes
+  ativos, pets dependentes do cliente, serviço sugere duração,
+  `datetime-local`, offset do navegador no envio); `lib/types.ts`
+  (bloco "Etapa 8", `AppointmentDto`, `ServicesCounts`,
+  `WhatsAppConfigDto` com campos de lembrete), `lib/format.ts`
+  (`localDayKey`, `todayLocal`, `shiftDay`, `formatDayTitle`,
+  `formatLocalTime`, `formatLocalDateShort`, `defaultStartLocal`);
+  home com card "Agendamentos" disponível; badge "Etapa 8 —
+  Agendamentos"; `/whatsapp` com select de template de lembrete
+  (aprovados com exatamente 3 variáveis) e antecedência em minutos;
+  `/dashboard` e `/relatorios` exibindo contagens reais de
+  agendamentos.
+- Testes: `tests/appointments.test.ts` com **45 testes** (criação e
+  validações 400, conflito/frenteiras/não-bloqueio/isolamento de
+  empresa, lista com filtros e paginação, edição e reagendamento,
+  transições de status, cancelamento e lembretes com
+  consentimento/template/aprovação/antecedência); `resetDatabase`
+  com `appointment.deleteMany()` antes de pet/client/service e
+  `whatsAppConfig` antes de `whatsAppTemplate` (novo FK); asserts de
+  `servicesRealized` atualizados em `tests/reports.test.ts`;
+  **total 337/337 aprovados (14 arquivos)**.
+
 ## [Etapa 7] — 2026-10-09 — Dashboard e relatórios
 
 ### Adicionado

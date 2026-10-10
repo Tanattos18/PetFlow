@@ -1,5 +1,41 @@
 # Banco de dados — diretrizes e modelo atual
 
+## Modelos implementados (Etapa 8)
+
+Migration: `database/prisma/migrations/20261010115308_etapa8_appointments`
+(aditiva — cria enum/tabela e adiciona colunas; não altera nem remove
+dados existentes).
+
+| Modelo | Campos principais | Restrições/índices |
+|---|---|---|
+| `Appointment` | `companyId` (FK `Restrict`), `clientId` (FK `Restrict`), `petId?` (FK `Restrict`, **opcional**), `serviceId` (FK `Restrict`), `startAt` `DateTime`, `endAt` `DateTime`, `startLocal` `String` (hora de parede `YYYY-MM-DDTHH:mm`), `durationMinutes` `Int`, `status` (enum `AppointmentStatus`, default `SCHEDULED`), `notes?`, `cancelReason?`, `cancelledAt?`, `cancelledByUserId?` (FK `SetNull`), `createdByUserId` (FK `Restrict`), timestamps | índices `[companyId, startLocal]` (visão por dia), `[companyId, status, startAt]` (conflito/relatórios), `[clientId]`, `[petId]`; sem unique de conflito — checagem em transação com `FOR UPDATE` na `Company` |
+
+Enums novos:
+
+- `AppointmentStatus`: `SCHEDULED`, `CONFIRMED`, `COMPLETED`,
+  `CANCELLED`, `NO_SHOW`.
+- `WhatsAppMessageOrigin` ganha `SERVICE_REMINDER` (lembrete de
+  agendamento; `MANUAL`/`AUTOMATED` permanecem).
+
+Alterações aditivas em modelos existentes:
+
+| Modelo | Campo adicionado | Observação |
+|---|---|---|
+| `WhatsAppConfig` | `reminderTemplateId String?` (FK → `WhatsAppTemplate`, `SetNull`) | Template usado nos lembretes; `reminderConfigs` no template |
+| `WhatsAppConfig` | `reminderLeadMinutes Int @default(1440)` | Antecedência em minutos (5..40320 validados no Zod) |
+
+Regras derivadas:
+
+- `startAt`/`endAt` são **derivados no servidor** de `startLocal` +
+  `utcOffsetMinutes` (leste-positivo) + `durationMinutes` do serviço;
+  `startLocal` fica gravado para a visão de dia sem depender de fuso.
+- Conflito de horário da empresa inteira é garantido em transação
+  (trava na `Company`), não por unique — fim-início exato é válido e
+  status terminal/cancelado não bloqueia.
+- `cancelledByUserId`/`cancelledBy` usam `SetNull` (cancelamento não
+  depende do usuário permanecer ativo); `createdByUserId` é
+  obrigatório (`Restrict`).
+
 ## Modelos implementados (Etapa 7)
 
 Migration: `database/prisma/migrations/20261010002727_etapa7_report_indexes`

@@ -3,15 +3,24 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { templateVariableCount } from "@petflow/shared";
 import { api, ApiError } from "../../lib/api";
 import { fetchSession, type Session } from "../../lib/session";
 import {
   whatsappConfigStatusLabels,
+  type Paginated,
   type WhatsAppConfigDto,
   type WhatsAppHealthResult,
+  type WhatsAppTemplateDto,
 } from "../../lib/types";
 
-const emptyForm = { phoneNumberId: "", wabaId: "", displayName: "" };
+const emptyForm = {
+  phoneNumberId: "",
+  wabaId: "",
+  displayName: "",
+  reminderTemplateId: "",
+  reminderLeadMinutes: "1440",
+};
 
 const statusBadgeClass: Record<string, string> = {
   ACTIVE: "rounded-full bg-teal-50 px-2 py-0.5 text-xs font-medium text-teal-700",
@@ -33,6 +42,7 @@ export default function WhatsAppConfigPage() {
   const [pageError, setPageError] = useState<string | null>(null);
   const [health, setHealth] = useState<WhatsAppHealthResult | null>(null);
   const [checking, setChecking] = useState(false);
+  const [reminderTemplates, setReminderTemplates] = useState<WhatsAppTemplateDto[]>([]);
 
   const isAdmin = session?.user.role === "ADMIN";
 
@@ -44,12 +54,27 @@ export default function WhatsAppConfigPage() {
         phoneNumberId: data.phoneNumberId ?? "",
         wabaId: data.wabaId ?? "",
         displayName: data.displayName ?? "",
+        reminderTemplateId: data.reminderTemplateId ?? "",
+        reminderLeadMinutes: String(data.reminderLeadMinutes),
       });
       setPageError(null);
     } catch (err) {
       setPageError(err instanceof ApiError ? err.message : "Falha ao carregar a configuração.");
     }
   }, []);
+
+  useEffect(() => {
+    if (!session) return;
+    api<Paginated<WhatsAppTemplateDto>>(
+      "/api/whatsapp/templates?pageSize=100&status=ACTIVE&approval=APPROVED",
+    )
+      .then((page) =>
+        setReminderTemplates(
+          page.items.filter((template) => templateVariableCount(template.body) === 3),
+        ),
+      )
+      .catch(() => setReminderTemplates([]));
+  }, [session]);
 
   useEffect(() => {
     fetchSession().then((value) => {
@@ -77,6 +102,8 @@ export default function WhatsAppConfigPage() {
           phoneNumberId: form.phoneNumberId.trim() || null,
           wabaId: form.wabaId.trim() || null,
           displayName: form.displayName.trim() || null,
+          reminderTemplateId: form.reminderTemplateId.trim() || null,
+          reminderLeadMinutes: Number(form.reminderLeadMinutes),
         }),
       });
       setNotice("Configuração salva.");
@@ -317,6 +344,53 @@ export default function WhatsAppConfigPage() {
                 onChange={(event) => setForm({ ...form, displayName: event.target.value })}
                 className={inputClass}
               />
+            </div>
+            <div className="sm:col-span-2 border-t border-slate-100 pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                Lembrete de agendamentos (Etapa 8)
+              </p>
+            </div>
+            <div>
+              <label htmlFor="wa-reminder-template" className="mb-1 block text-sm text-slate-700">
+                Template de lembrete
+              </label>
+              <select
+                id="wa-reminder-template"
+                value={form.reminderTemplateId}
+                onChange={(event) =>
+                  setForm({ ...form, reminderTemplateId: event.target.value })
+                }
+                className={inputClass}
+              >
+                <option value="">Nenhum (lembretes desativados)</option>
+                {reminderTemplates.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-slate-500">
+                Somente templates aprovados com exatamente 3 variáveis: {"{{1}}"} tutor/pet,{" "}
+                {"{{2}}"} serviço e {"{{3}}"} data/hora.
+              </p>
+            </div>
+            <div>
+              <label htmlFor="wa-reminder-lead" className="mb-1 block text-sm text-slate-700">
+                Antecedência do lembrete (minutos)
+              </label>
+              <input
+                id="wa-reminder-lead"
+                inputMode="numeric"
+                value={form.reminderLeadMinutes}
+                onChange={(event) =>
+                  setForm({ ...form, reminderLeadMinutes: event.target.value })
+                }
+                placeholder="1440"
+                className={inputClass}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Entre 5 e 40320 minutos (1440 = 1 dia antes).
+              </p>
             </div>
             <div className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 sm:col-span-2">
               O access token e o app secret ficam apenas nas variáveis de ambiente do servidor

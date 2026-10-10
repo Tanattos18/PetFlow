@@ -291,3 +291,57 @@ tests/        → testes compartilhados/integração
 - **Índices justificados**: apenas `(companyId, createdAt)` em
   `Client` e `Pet` (agregações por período); demais colunas já
   tinham índices das etapas anteriores — ver `DATABASE.md`.
+- **Disponibilidade do módulo (pós-Etapa 8)**: `servicesRealized`
+  passou a `available: true` e `summary.services`/`clients.services`
+  expõem contagens por status; a checagem de `available` permanece no
+  frontend para tolerar resposta de API antiga.
+
+## Módulo agendamentos (Etapa 8)
+
+- **Escopo aprovado na conversa** (sem prompt oficial): CRUD +
+  conflito de horário da empresa inteira + lembretes pela fila
+  WhatsApp existente + `/agenda`; serviços em vendas/PDV ficaram de
+  fora e `durationMinutes` é obrigatório (1..1440).
+- **Sem `AdminGuard`**: agenda é operação diária — MEMBER cria,
+  edita, confirma, conclui, marca `NO_SHOW` e cancela; a única
+  escrita "sensível" que exige ADMIN no módulo é a configuração do
+  WhatsApp (template/antecedência de lembrete).
+- **Horário é autoridade do servidor**: o cliente envia apenas
+  `startLocal` (`YYYY-MM-DDTHH:mm`) e `utcOffsetMinutes`
+  (`-getTimezoneOffset()`, leste-positivo ±840); `startAt`/`endAt`
+  são recalculados sempre (inclusive no `PATCH`), `endAt` nunca vem
+  do cliente; passado é recusado com tolerância de 60 s (relógio do
+  cliente × servidor).
+- **Conflito por transação, não por unique**: lock
+  `SELECT ... FOR UPDATE` na `Company` (mesmo padrão da sessão de
+  caixa da Etapa 4) + sobreposição `startAt < endAt AND endAt >
+  startAt` sobre `SCHEDULED`/`CONFIRMED`; fim-início exato é livre;
+  terminal/cancelado não bloqueia; a edição exclui o próprio
+  registro. Unique duro foi descartado (fuso/estilo de gravação
+  mudaria o contrato — a coluna `startLocal` é string de parede).
+- **Guardas de transição no servidor**: `PATCH /:id/status` aceita
+  só `CONFIRMED`/`COMPLETED`/`NO_SHOW` (qualquer status → 400,
+  terminal → 409); cancelamento é endpoint próprio (`reason`
+  obrigatório) via `updateMany` condicional — dupla corrida vira 409
+  e o motivo/autor ficam auditados; edição só em status
+  não-terminal.
+- **Lembretes sem tocar no worker**: `syncReminder` roda na mesma
+  transação de cada mutação (criar/editar/status/cancelar) e usa a
+  fila já existente (`WhatsAppMessage` + claim/backoff do `apps/worker`
+  da Etapa 6 — nenhum código de worker foi alterado). Chave
+  `appointment-reminder:<id>` única por empresa dá idempotência;
+  elegibilidade (config, template `APPROVED` com 3 variáveis,
+  consentimento `OPTED_IN`, telefone E.164, horário futuro) é
+  **revalidada a cada mutação** — não é assumir estado do passado.
+  Reagendar atualiza a pendente; cancelar/concluir/inelegível
+  cancela com motivo registrado; **falha de lembrete só gera
+  `Logger.warn`** (o CRUD nunca falha por causa do WhatsApp).
+- **Integração com relatórios**: agregação de contagens por status
+  (`appointmentStatusCounts`) reutiliza o mesmo recorte de período
+  dos demais relatórios; frontend de dashboard/relatórios consome
+  `services` sem lógica de fallback de negócio.
+- **Frontend sem lib de calendário**: `/agenda` é visão por dia com
+  navegação ←/Hoje/→ + `input[type=date]`, filtros e paginação;
+  form único (`AppointmentForm`) cobre novo/edição, pré-preenche a
+  partir do registro e recarrega os pets quando o cliente muda
+  (cliente/pet/serviço editáveis em qualquer status não-terminal).

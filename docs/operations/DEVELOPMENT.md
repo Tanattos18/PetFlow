@@ -187,6 +187,36 @@ Etapa 1; os demais endpoints ficam em `/api/...`.
 - Testes novos em `tests/reports.test.ts` rodam no `petflow_test`
   via `npm test`; a migration é aplicada no setup.
 
+## Agendamentos (Etapa 8)
+
+- Endpoints, conflito e lembretes: `docs/architecture/API.md`.
+- Escopo aprovado na conversa (sem prompt oficial): agenda diária,
+  conflito de horário da **empresa inteira**, lembretes pela fila
+  WhatsApp existente; serviços em vendas/PDV ficaram de fora.
+- Sem `AdminGuard`: membros criam/editam agendamentos; configuração
+  de lembrete (template/antecedência) continua em `/whatsapp` como
+  ADMIN.
+- Horário sempre no servidor: envie `startLocal`
+  (`YYYY-MM-DDTHH:mm`) + `utcOffsetMinutes`
+  (`-getTimezoneOffset()`); `startAt`/`endAt` são recalculados e o
+  passado é recusado (tolerância 60 s).
+- Conflito → **409** quando outra janela `SCHEDULED`/`CONFIRMED`
+  sobrepõe; fim-início exato é livre; cancelado/concluído/no-show
+  não bloqueia.
+- Lembretes: configure em `/whatsapp` um template **aprovado com
+  exatamente 3 variáveis** + antecedência (5..40320 min) e
+  consentimento `OPTED_IN` do cliente; a fila é a mesma da Etapa 6
+  (`WhatsAppMessage` com `origin=SERVICE_REMINDER`, chave
+  `appointment-reminder:<id>`) — o worker não mudou.
+- Páginas novas: `/agenda`, `/agenda/novo`, `/agenda/[id]`,
+  `/agenda/[id]/editar`; home ganhou card "Agendamentos";
+  dashboard/relatórios exibem contagens por status
+  (`summary.services`, `clients.services`).
+- Migração da etapa: `20261010115308_etapa8_appointments` (enum +
+  `Appointment` + campos de lembrete em `WhatsAppConfig`).
+- Testes novos em `tests/appointments.test.ts` (45) rodam no
+  `petflow_test` via `npm test`; a migration é aplicada no setup.
+
 ## Estrutura rápida
 
 Ver `docs/architecture/ARCHITECTURE.md` e o `README.md` na raiz.

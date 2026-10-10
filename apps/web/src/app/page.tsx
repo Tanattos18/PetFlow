@@ -55,7 +55,12 @@ const plannedModules = [
     href: "/relatorios",
     available: true,
   },
-  { name: "Agendamentos", description: "Banho, tosa e agenda" },
+  {
+    name: "Agendamentos",
+    description: "Agenda diária de banho e tosa com lembretes no WhatsApp",
+    href: "/agenda",
+    available: true,
+  },
 ];
 
 export default function HomePage() {

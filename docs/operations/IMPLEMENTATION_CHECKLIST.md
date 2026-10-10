@@ -302,6 +302,75 @@ Escopo definido em `Etapas_projeto/PetFlow_Prompt_OpenCode_Etapa_7.md`.
       ARCHITECTURE, DEVELOPMENT, README)
 - [x] Commit e push (ver relatório final / PROJECT_STATUS)
 
+## Etapa 8 — Agendamentos (2026-10-10)
+
+Escopo definido e aprovado na conversa com o proprietário (sem prompt
+oficial em `Etapas_projeto/`).
+
+- [x] Etapa 7 confirmada funcional (292/292 testes antes de iniciar;
+      auditoria de lint/typecheck/build/db:validate sem problemas)
+- [x] Decisões registradas: conflito de horário da empresa inteira,
+      serviços em vendas/PDV fora da etapa, lembretes automáticos
+      incluídos pela fila WhatsApp existente, `durationMinutes`
+      obrigatório (1..1440)
+- [x] Schemas Zod E8 em `@petflow/shared`: `localDateTimeField` com
+      calendário real, `create/update/cancel/update-status/list
+      appointments`, constantes de status bloqueante/terminal,
+      constantes de lembrete (3 variáveis, lead 5..40320 default
+      1440); `updateWhatsAppConfigSchema` com `reminderTemplateId` e
+      `reminderLeadMinutes`
+- [x] Migration `20261010115308_etapa8_appointments`: enum
+      `AppointmentStatus`, modelo `Appointment` (FK `Restrict` para
+      empresa/cliente/pet/serviço/autor, `cancelledByUserId`
+      `SetNull`, índices `[companyId, startLocal]`, `[companyId,
+      status, startAt]`, `[clientId]`, `[petId]`) e
+      `WhatsAppConfig.reminderTemplateId`/`reminderLeadMinutes`;
+      aplicada em `petflow` (dev); `npm run db:validate` OK
+- [x] `POST /api/appointments` (201): `startAt`/`endAt` calculados no
+      servidor (`startLocal` + offset leste-positivo ±840), passado
+      recusado (tolerância 60 s), cliente/pet/serviço validados
+- [x] `GET /api/appointments` (filtros `from/to` sobre `startLocal`,
+      `status`, `clientId`, `petId`, `serviceId`, `search`,
+      paginação) e `GET /:id` (404 cross-tenant)
+- [x] `PATCH /:id` (campos parciais, reagendamento recalcula
+      `startAt`, apenas status não-terminal), `PATCH /:id/status`
+      (CONFIRMED/COMPLETED/NO_SHOW; terminal → 409), `POST /:id/cancel`
+      (201, motivo 3..500, guarda de status → dupla corrida 409)
+- [x] Conflito em transação com `FOR UPDATE` na `Company`: sobreposição
+      em SCHEDULED/CONFIRMED → 409; fim-início exato permitido;
+      terminal/cancelado não bloqueia; edição exclui o próprio registro
+- [x] Sem `AdminGuard` (agenda é operação diária — MEMBER agenda);
+      `companyId` sempre da sessão
+- [x] Lembretes (`syncReminder`, fila WhatsApp + worker intactos):
+      chave `appointment-reminder:<id>` por empresa,
+      `origin=SERVICE_REMINDER`, `nextAttemptAt = max(now, startAt −
+      lead)`, variáveis pet/serviço/data-hora local, revalidação de
+      config/template/consentimento/telefone a cada mutação, atualiza
+      pendente ao reagendar, cancela ao cancelar/concluir ou tornar
+      inelegível; falha só loga (CRUD nunca falha)
+- [x] `GET/PUT /api/whatsapp/config` com campos de lembrete; PUT
+      valida template da mesma empresa com exatamente 3 variáveis (400)
+- [x] Relatórios: `summary.services` (contagens por status,
+      zero-fill), `modules.servicesRealized = {available: true,
+      reason: null}`; `clients.services` substitui `servicesRealized`
+- [x] Frontend: `/agenda` (visão por dia, navegação ←/Hoje/→/date
+      picker, filtros, paginação), `/agenda/novo`, `/agenda/[id]`
+      (transições + cancelamento com motivo), `/agenda/[id]/editar`,
+      `components/AppointmentForm.tsx`, helpers em `lib/format.ts`,
+      bloco E8 em `lib/types.ts`; home card "Agendamentos"; badge
+      "Etapa 8 — Agendamentos"; `/whatsapp` com select de template de
+      lembrete e antecedência; dashboard/relatórios com contagens
+- [x] Testes: 337/337 aprovados em PostgreSQL real (45 novos em
+      `tests/appointments.test.ts`; asserts de `servicesRealized`
+      atualizados em `tests/reports.test.ts`; `resetDatabase` cobre
+      `Appointment` e o novo FK)
+- [x] `npm run lint`, `npm run typecheck`, `npm run build`,
+      `npm run db:validate` OK; varredura de segredos sem achados
+      reais
+- [x] Documentação atualizada (CHANGELOG, STATUS, DATABASE, API,
+      ARCHITECTURE, DEVELOPMENT, README)
+- [x] Commit e push (ver relatório final / PROJECT_STATUS)
+
 ## Etapas futuras — módulos de negócio
 
 - [x] Cadastro de clientes e animais (Etapa 5)
@@ -310,7 +379,7 @@ Escopo definido em `Etapas_projeto/PetFlow_Prompt_OpenCode_Etapa_7.md`.
 - [x] Caixa e financeiro (Etapa 4)
 - [x] Automação WhatsApp (Etapa 6 — Cloud API + fila + webhook + UI)
 - [x] Dashboard e relatórios (Etapa 7)
-- [ ] Catálogo de serviços está pronto (Etapa 5); agendamentos na Etapa 8
+- [x] Agendamentos (Etapa 8 — CRUD + conflito + lembretes + `/agenda`)
 - [ ] Assinaturas/multiempresa comercial (Etapa 9)
 
 > Regra: nenhuma etapa é iniciada sem autorização explícita; marcar itens aqui

@@ -28,8 +28,25 @@ export interface CsvResult {
   filename: string;
 }
 
-const SERVICES_UNAVAILABLE_REASON =
-  "Serviços realizados e agendados dependem do módulo de agendamentos (Etapa 8) — sem estado de realização no banco até lá.";
+async function appointmentStatusCounts(
+  prisma: PrismaService,
+  companyId: string,
+  range: { gte: Date; lte: Date },
+) {
+  const groups = await prisma.appointment.groupBy({
+    by: ["status"],
+    where: { companyId, startAt: range },
+    _count: { _all: true },
+  });
+  const counts = new Map(groups.map((row) => [row.status, row._count._all]));
+  return {
+    scheduled: counts.get("SCHEDULED") ?? 0,
+    confirmed: counts.get("CONFIRMED") ?? 0,
+    completed: counts.get("COMPLETED") ?? 0,
+    cancelled: counts.get("CANCELLED") ?? 0,
+    noShow: counts.get("NO_SHOW") ?? 0,
+  };
+}
 
 interface ResolvedPeriod {
   from: string;
@@ -87,6 +104,7 @@ export class ReportsService {
       newClients,
       newPets,
       waGroups,
+      apptCounts,
     ] = await Promise.all([
       this.prisma.sale.aggregate({
         where: { companyId, status: "COMPLETED", createdAt: range },
@@ -140,6 +158,7 @@ export class ReportsService {
         where: { companyId, createdAt: range },
         _count: { _all: true },
       }),
+      appointmentStatusCounts(this.prisma, companyId, range),
     ]);
 
     const net = completed._sum.total ?? new Prisma.Decimal(0);
@@ -229,6 +248,7 @@ export class ReportsService {
         lowStockCount: Number(stockCounts[0]?.low_count ?? 0),
       },
       clients: { newClients, newPets },
+      services: apptCounts,
       whatsapp: {
         total: waTotal,
         pending: (waCounts.get("PENDING") ?? 0) + (waCounts.get("PROCESSING") ?? 0),
@@ -240,7 +260,7 @@ export class ReportsService {
         cancelled: waCounts.get("CANCELLED") ?? 0,
       },
       modules: {
-        servicesRealized: { available: false, reason: SERVICES_UNAVAILABLE_REASON },
+        servicesRealized: { available: true, reason: null },
       },
     };
   }
@@ -647,7 +667,7 @@ export class ReportsService {
     const companyId = auth.companyId;
     const range = { gte: period.start, lte: period.end };
 
-    const [newClients, newPets, bySpecies] = await Promise.all([
+    const [newClients, newPets, bySpecies, apptCounts] = await Promise.all([
       this.prisma.client.count({ where: { companyId, createdAt: range } }),
       this.prisma.pet.count({ where: { companyId, createdAt: range } }),
       this.prisma.pet.groupBy({
@@ -655,6 +675,7 @@ export class ReportsService {
         where: { companyId, createdAt: range },
         _count: { _all: true },
       }),
+      appointmentStatusCounts(this.prisma, companyId, range),
     ]);
 
     return {
@@ -669,7 +690,7 @@ export class ReportsService {
           count: row._count._all,
         }))
         .sort((a, b) => b.count - a.count),
-      servicesRealized: { available: false, reason: SERVICES_UNAVAILABLE_REASON },
+      services: apptCounts,
     };
   }
 

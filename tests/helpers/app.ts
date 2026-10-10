@@ -25,14 +25,17 @@ export async function resetDatabase(prisma: PrismaService): Promise<void> {
   await prisma.whatsAppMessageAttempt.deleteMany();
   await prisma.whatsAppMessage.deleteMany();
   await prisma.whatsAppConsent.deleteMany();
-  await prisma.whatsAppTemplate.deleteMany();
+  // config referencia template via reminderTemplateId (FK) — apagar antes
   await prisma.whatsAppConfig.deleteMany();
+  await prisma.whatsAppTemplate.deleteMany();
   await prisma.cashMovement.deleteMany();
   await prisma.saleItem.deleteMany();
   await prisma.sale.deleteMany();
   await prisma.cashSession.deleteMany();
   await prisma.stockMovement.deleteMany();
   await prisma.product.deleteMany();
+  // appointment referencia pet/client/service e users (FK Restrict)
+  await prisma.appointment.deleteMany();
   await prisma.pet.deleteMany();
   await prisma.client.deleteMany();
   await prisma.service.deleteMany();

@@ -358,6 +358,8 @@ export interface WhatsAppConfigDto {
   lastError: string | null;
   lastHealthAt: string | null;
   updatedAt: string | null;
+  reminderTemplateId: string | null;
+  reminderLeadMinutes: number;
   provider: { provider: "mock" | "meta"; credentialsConfigured: boolean };
   webhook: {
     path: string;
@@ -516,7 +518,16 @@ export interface ReportPeriod {
 
 export interface ModuleAvailability {
   available: boolean;
-  reason: string;
+  reason: string | null;
+}
+
+/** Contagens de agendamentos por status no período (Etapa 8). */
+export interface ServicesCounts {
+  scheduled: number;
+  confirmed: number;
+  completed: number;
+  cancelled: number;
+  noShow: number;
 }
 
 export interface DashboardSummaryDto {
@@ -552,6 +563,7 @@ export interface DashboardSummaryDto {
   };
   stock: { outOfStockCount: number; lowStockCount: number };
   clients: { newClients: number; newPets: number };
+  services: ServicesCounts;
   whatsapp: {
     total: number;
     pending: number;
@@ -676,7 +688,7 @@ export interface ClientsReportDto {
   newClients: number;
   newPets: number;
   petsBySpecies: Array<{ species: PetSpecies; label: string; count: number }>;
-  servicesRealized: ModuleAvailability;
+  services: ServicesCounts;
 }
 
 export interface WhatsAppReportDto {
@@ -694,4 +706,49 @@ export interface WhatsAppReportDto {
     cancelled: number;
   };
   failed: { count: number; byReason: Array<{ reason: string; count: number }> };
+}
+
+// ---------------------------------------------------------------------------
+// Etapa 8 — agendamentos
+// ---------------------------------------------------------------------------
+
+export type AppointmentStatus =
+  | "SCHEDULED"
+  | "CONFIRMED"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "NO_SHOW";
+
+export const appointmentStatusLabels: Record<AppointmentStatus, string> = {
+  SCHEDULED: "Agendado",
+  CONFIRMED: "Confirmado",
+  COMPLETED: "Concluído",
+  CANCELLED: "Cancelado",
+  NO_SHOW: "Não compareceu",
+};
+
+/** Transições aceitas em PATCH /api/appointments/:id/status. */
+export type AppointmentActionStatus = "CONFIRMED" | "COMPLETED" | "NO_SHOW";
+
+export interface AppointmentDto {
+  id: string;
+  companyId: string;
+  clientId: string;
+  petId: string | null;
+  serviceId: string;
+  startAt: string;
+  endAt: string;
+  startLocal: string;
+  durationMinutes: number;
+  status: AppointmentStatus;
+  notes: string | null;
+  cancelReason: string | null;
+  cancelledAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  client: { id: string; name: string; phone: string | null; mobile: string | null; status: RecordStatus };
+  pet: { id: string; name: string; species: PetSpecies } | null;
+  service: { id: string; name: string; price: string; status: RecordStatus };
+  createdBy: { id: string; name: string };
+  cancelledBy: { id: string; name: string } | null;
 }

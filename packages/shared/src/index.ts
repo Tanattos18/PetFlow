@@ -600,6 +600,13 @@ export const updateWhatsAppConfigSchema = z.object({
   phoneNumberId: z.string().trim().max(60).optional().nullable(),
   wabaId: z.string().trim().max(60).optional().nullable(),
   displayName: optionalText(120),
+  reminderTemplateId: z.string().trim().max(60).optional().nullable(),
+  reminderLeadMinutes: z.coerce
+    .number()
+    .int("Antecedência deve ser um número inteiro de minutos")
+    .min(5, "Antecedência mínima de 5 minutos")
+    .max(40320, "Antecedência máxima de 28 dias (40320 minutos)")
+    .optional(),
 });
 export type UpdateWhatsAppConfigInput = z.infer<typeof updateWhatsAppConfigSchema>;
 
@@ -886,3 +893,108 @@ export type ClientsReportQuery = z.infer<typeof clientsReportQuerySchema>;
 
 export const whatsappReportQuerySchema = reportPeriodBase.superRefine(checkReportPeriod);
 export type WhatsAppReportQuery = z.infer<typeof whatsappReportQuerySchema>;
+
+// ---------------------------------------------------------------------------
+// Etapa 8 — agendamentos
+// ---------------------------------------------------------------------------
+
+export const appointmentStatusSchema = z.enum([
+  "SCHEDULED",
+  "CONFIRMED",
+  "COMPLETED",
+  "CANCELLED",
+  "NO_SHOW",
+]);
+export type AppointmentStatus = z.infer<typeof appointmentStatusSchema>;
+
+export const appointmentStatusLabels: Record<AppointmentStatus, string> = {
+  SCHEDULED: "Agendado",
+  CONFIRMED: "Confirmado",
+  COMPLETED: "Concluído",
+  CANCELLED: "Cancelado",
+  NO_SHOW: "Não compareceu",
+};
+
+/** Status que ocupam horário (bloqueiam conflito na empresa inteira). */
+export const APPOINTMENT_BLOCKING_STATUSES: readonly AppointmentStatus[] = [
+  "SCHEDULED",
+  "CONFIRMED",
+];
+
+/** Status finais — nenhuma transição posterior é aceita. */
+export const APPOINTMENT_TERMINAL_STATUSES: readonly AppointmentStatus[] = [
+  "COMPLETED",
+  "CANCELLED",
+  "NO_SHOW",
+];
+
+/** Lembrete de agendamento exige template com exatamente 3 variáveis. */
+export const APPOINTMENT_REMINDER_VARIABLE_COUNT = 3;
+export const APPOINTMENT_REMINDER_LEAD_MIN = 5;
+export const APPOINTMENT_REMINDER_LEAD_MAX = 40320;
+export const APPOINTMENT_REMINDER_LEAD_DEFAULT = 1440;
+
+const localDateTimeField = z
+  .string()
+  .trim()
+  .regex(
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/,
+    "Data e hora devem estar no formato YYYY-MM-DDTHH:mm",
+  )
+  .refine(
+    (value) =>
+      !Number.isNaN(Date.parse(`${value}:00.000Z`)) &&
+      new Date(`${value}:00.000Z`).toISOString().slice(0, 16) === value,
+    "Data e hora inválidas",
+  );
+
+export const createAppointmentSchema = z.object({
+  clientId: z.string().trim().min(1, "Cliente é obrigatório").max(60),
+  petId: z.string().trim().max(60).optional().nullable(),
+  serviceId: z.string().trim().min(1, "Serviço é obrigatório").max(60),
+  startLocal: localDateTimeField,
+  utcOffsetMinutes: z.coerce
+    .number()
+    .int("Fuso horário deve ser um número inteiro de minutos")
+    .min(-840, "Fuso horário inválido (mínimo −14h)")
+    .max(840, "Fuso horário inválido (máximo +14h)"),
+  durationMinutes: z.coerce
+    .number()
+    .int("Duração deve ser um número inteiro de minutos")
+    .min(1, "Duração mínima de 1 minuto")
+    .max(1440, "Duração máxima de 1440 minutos (24h)"),
+  notes: optionalText(1000),
+});
+export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
+
+export const updateAppointmentSchema = createAppointmentSchema.partial();
+export type UpdateAppointmentInput = z.infer<typeof updateAppointmentSchema>;
+
+export const updateAppointmentStatusSchema = z.object({
+  status: z.enum(["CONFIRMED", "COMPLETED", "NO_SHOW"]),
+});
+export type UpdateAppointmentStatusInput = z.infer<
+  typeof updateAppointmentStatusSchema
+>;
+
+export const cancelAppointmentSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Motivo é obrigatório para cancelamento")
+    .max(500, "Motivo deve ter no máximo 500 caracteres"),
+});
+export type CancelAppointmentInput = z.infer<typeof cancelAppointmentSchema>;
+
+export const listAppointmentsQuerySchema = paginationQuerySchema
+  .extend({
+    from: reportDateField.optional(),
+    to: reportDateField.optional(),
+    status: appointmentStatusSchema.optional(),
+    clientId: z.string().trim().max(60).optional(),
+    petId: z.string().trim().max(60).optional(),
+    serviceId: z.string().trim().max(60).optional(),
+    search: z.string().trim().max(120).optional(),
+  })
+  .superRefine(checkReportPeriod);
+export type ListAppointmentsQuery = z.infer<typeof listAppointmentsQuerySchema>;

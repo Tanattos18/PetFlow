@@ -318,17 +318,36 @@ export default function DashboardPage() {
             </StatCard>
 
             <StatCard
-              title="Serviços realizados"
-              period="—"
-              definition={summary.modules.servicesRealized.reason}
+              title="Agendamentos e serviços"
+              period={periodLabel}
+              definition="Contagem de agendamentos por status no período, pela data e hora de início (Etapa 8)."
             >
-              <span className="inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                Módulo não disponível
-              </span>
-              <p className="mt-2 text-sm text-slate-500">
-                O catálogo de serviços existe (Etapa 5), mas não há estado de
-                realização/agendamento até a Etapa 8.
-              </p>
+              {summary.modules.servicesRealized.available && summary.services ? (
+                <>
+                  <p className="text-2xl font-semibold text-slate-900">
+                    {summary.services.completed}
+                  </p>
+                  <p className="text-sm text-slate-600">serviço(s) concluído(s)</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Confirmados: <strong className="font-medium">{summary.services.confirmed}</strong>{" "}
+                    · Agendados: <strong className="font-medium">{summary.services.scheduled}</strong>
+                  </p>
+                  <p className="text-sm text-slate-600">
+                    Cancelados: {summary.services.cancelled} · Não compareceu:{" "}
+                    {summary.services.noShow}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <span className="inline-block rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                    Módulo não disponível
+                  </span>
+                  <p className="mt-2 text-sm text-slate-500">
+                    {summary.modules.servicesRealized.reason ??
+                      "Contagens de agendamentos indisponíveis."}
+                  </p>
+                </>
+              )}
             </StatCard>
           </div>
 

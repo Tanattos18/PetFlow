@@ -2,61 +2,68 @@
 
 ## Etapa atual
 
-**Etapa 7 — Dashboard e relatórios** — CONCLUÍDA
+**Etapa 8 — Agendamentos** — CONCLUÍDA
 (aguardando aprovação do proprietário para avançar).
 
-Data: 2026-10-09.
+Data: 2026-10-10.
 
 Etapas anteriores: Etapa 0 (2026-10-09), Etapa 1 (2026-10-09),
 Etapa 2 (2026-10-09), Etapa 3 (2026-10-09), Etapa 4 (2026-10-09),
-Etapa 5 (2026-10-09), Etapa 6 (2026-10-09).
+Etapa 5 (2026-10-09), Etapa 6 (2026-10-09), Etapa 7 (2026-10-09).
 
-Escopo: dashboard gerencial e relatórios com agregação server-side
-sobre dados reais das Etapas 1–6 (sem dados fictícios); período em
-UTC documentado e testado; CSV opcional com proteção contra injeção;
-serviços realizados explicitamente indisponíveis até a Etapa 8; sem
-nova dependência de biblioteca de gráficos.
+Escopo (aprovado na conversa — sem prompt oficial em
+`Etapas_projeto/`): módulo de agendamentos com agenda diária,
+conflito de horário da empresa inteira em transação com lock,
+transições de status/cancelamento com motivo, lembretes automáticos
+pela fila WhatsApp existente (worker intacto), integração com
+dashboard/relatórios e frontend `/agenda`; decisões registradas —
+conflito empresa-inteira, serviços em vendas/PDV fora da etapa,
+`durationMinutes` obrigatório.
 
-## Entregas concluídas (Etapa 7)
+## Entregas concluídas (Etapa 8)
 
-- [x] Auditoria inicial: fontes de dados dos 6 módulos existentes,
-      padrões de serviço/controller/teste reaproveitados, sem lib de
-      gráficos nas dependências (decisão: barras CSS/Tailwind).
-- [x] Schemas Zod E7 em `@petflow/shared` (seção "Etapa 7"):
-      `reportDateField` valida calendário real (round-trip ISO),
-      `checkReportPeriod` (`from ≤ to`, máximo 366 dias), período
-      padrão de 30 dias, formatos `json|csv` e schemas dos 6
-      relatórios (+ paginação).
-- [x] Migration aditiva `20261010002727_etapa7_report_indexes`
-      (`Client` e `Pet` com `@@index([companyId, createdAt])`)
-      aplicada em `petflow` (dev) e `petflow_test` (testes);
-      schema validado; nenhum dado alterado.
-- [x] Módulo `apps/api/src/reports` (`ReportsModule`):
-      `GET /api/reports/summary` (vendas, por dia/forma de pagamento
-      em SQL, caixa, estoque, clientes/pets, WhatsApp,
-      `servicesRealized.available=false`), `/sales` (totais
-      concluídas × canceladas, filtros, paginação), `/stock/alerts`
-      (sem estoque ou no mínimo, sem inativos), `/stock/movements`
-      (totais por tipo zero-fill), `/cash` (inCash vs todos,
-      estornos, sessões), `/clients` (novos + espécies) e
-      `/whatsapp` (status atual + falhas por motivo).
-- [x] Período em UTC inclusivo `T00:00:00.000Z`–`T23:59:59.999Z`,
-      default 30 dias, máx. 366; ticket médio com `null` sem
-      vendas; totais do relatório de vendas sempre separados por
-      status (filtro `status` afeta só a lista; `paymentMethod`
-      afeta os totais).
-- [x] Helper CSV com aspas/CRLF e neutralização de injeção
-      (`=`, `+`, `-`, `@` → apóstrofo), teto de 5000 linhas, ignora
-      paginação; exportação em vendas, alertas e movimentações
-      (`format=csv` + Content-Disposition).
-- [x] Frontend: `/dashboard` (período, KPIs, barras CSS de vendas
-      por dia e por forma de pagamento, card de serviços
-      indisponível), `/relatorios` (5 abas com filtros, paginação e
-      CSV), `lib/format.ts`, `downloadCsv()`; home com "Dashboard" e
-      "Relatórios"; badge "Etapa 7".
-- [x] Leitura de relatórios exige apenas sessão (sem `AdminGuard`);
-      `companyId` sempre da sessão — parâmetro de cliente é
-      ignorado.
+- [x] Schemas Zod E8 em `@petflow/shared` (seção "Etapa 8"):
+      `localDateTimeField` (calendário real), `create/update/cancel/
+      update-status/listAppointments`, `appointmentStatusSchema`,
+      constantes de status bloqueante/terminal, constantes de
+      lembrete (3 variáveis, lead 5..40320 default 1440) e
+      `updateWhatsAppConfigSchema` com `reminderTemplateId`/
+      `reminderLeadMinutes`.
+- [x] Migration `20261010115308_etapa8_appointments`: enum
+      `AppointmentStatus`, modelo `Appointment` (FK `Restrict`,
+      índices por empresa/status/cliente/pet) e campos de lembrete em
+      `WhatsAppConfig`; aplicada em `petflow` (dev); `db:validate` OK.
+- [x] Módulo `apps/api/src/appointments` (somente sessão, sem
+      `AdminGuard`): `POST` (201, `startAt`/`endAt` calculados no
+      servidor, passado recusado), `GET` (filtros `from/to`, status,
+      cliente/pet/serviço, busca, paginação), `GET :id`, `PATCH :id`
+      (parcial + reagendamento), `PATCH :id/status`
+      (CONFIRMED/COMPLETED/NO_SHOW), `POST :id/cancel` (201, motivo
+      3..500); conflito da empresa inteira com `FOR UPDATE` na
+      `Company` → 409 (fim-início exato permitido; terminal/cancelado
+      não bloqueia).
+- [x] Lembretes: `syncReminder` na mesma transação de cada mutação,
+      chave `appointment-reminder:<id>` por empresa,
+      `origin=SERVICE_REMINDER`, `nextAttemptAt = max(now, startAt −
+      lead)`, variáveis pet/serviço/data-hora local, revalidação de
+      config/template/consentimento/telefone a cada mutação, atualiza
+      pendente ao reagendar, cancela ao cancelar/concluir ou tornar
+      inelegível; falha só loga (CRUD nunca falha); worker não
+      alterado.
+- [x] `GET/PUT /api/whatsapp/config` com campos de lembrete; PUT
+      valida template da empresa com exatamente 3 variáveis (400).
+- [x] Relatórios: `summary.services` (contagens por status,
+      zero-fill), `modules.servicesRealized = {available: true,
+      reason: null}`; `clients.services` substitui
+      `servicesRealized`.
+- [x] Frontend: `/agenda`, `/agenda/novo`, `/agenda/[id]`,
+      `/agenda/[id]/editar` + `components/AppointmentForm.tsx`,
+      `lib/format.ts` (helpers de dia local), `lib/types.ts` (bloco
+      E8); home card "Agendamentos", badge "Etapa 8 — Agendamentos",
+      `/whatsapp` com template de lembrete e antecedência,
+      `/dashboard` e `/relatorios` com contagens reais.
+- [x] `resetDatabase` cobre `Appointment` e o novo FK de template de
+      lembrete.
 
 ## Testes executados
 
@@ -65,23 +72,22 @@ nova dependência de biblioteca de gráficos.
 | Schema Prisma válido | `npm run db:validate` | OK |
 | Lint | `npm run lint` | OK (0 erros) |
 | Typecheck | `npm run typecheck` | OK (4 workspaces) |
-| Testes (PostgreSQL real) | `npm test` | 292/292 aprovados (13 arquivos) |
+| Testes (PostgreSQL real) | `npm test` | 337/337 aprovados (14 arquivos) |
 | Build | `npm run build` | OK (shared, api, web, worker) |
+| Varredura de segredos | grep de credenciais | sem achados reais |
 
-Cobertura dos testes novos (41, `tests/reports.test.ts`): agregações
-de vendas (líquido/bruto/descontos/cancelamentos/ticket com
-rounding), fronteiras de data UTC (00:00:00.000 inclusivo,
-23:59:59.999 do dia vizinho excluído), default de 30 dias, validação
-de período (inverso, >366 dias, formato e data de calendário
-inválidos → 400), filtros e paginação (status afeta só a lista),
-consistência resumo × relatório, alertas de estoque (baixo/zerado,
-inativo excluído), movimentos por tipo e período, caixa (`inCash`
-vs todos, estorno, sessão fechada com diferença), clientes/pets por
-período e espécie, WhatsApp (aceitação ≠ entrega, falhas por
-motivo), isolamento multiempresa em todos os relatórios, permissões
-(401 sem sessão em todos os endpoints, MEMBER pode ler), CSV
-(content-type, filename, anti-injeção, ignora paginação) e estado
-vazio (`ticketAverage: null`).
+Cobertura dos testes novos (45, `tests/appointments.test.ts`):
+criação e validações (passado, cliente/pet/serviço inválidos ou
+inativos, cross-tenant 404), conflito de empresa inteira (sobreposição
+409, fim-início exato 201, terminal/cancelado não bloqueia,
+isolamento entre empresas), lista com filtros/busca/paginação,
+edição e reagendamento (revalida conflito; terminal 409), transições
+de status (invalidos 400, terminal 409), cancelamento (motivo
+obrigatório, duplo 409) e lembretes (PENDING única por idempotência,
+sem config/template aprovado/consentimento → sem fila, reagendar
+atualiza, confirmar mantém, cancelar/concluir cancela a pendente,
+opt-out e lead inválidos 400). Asserts de `servicesRealized`
+atualizados em `tests/reports.test.ts`.
 
 ## Pendências conhecidas
 
@@ -101,9 +107,12 @@ vazio (`ticketAverage: null`).
   apenas 11 dígitos) — avaliar em etapa avançada.
 - Duplicidade de clientes: janela de corrida aceita (sem unique duro de
   `nameKey`).
-- Itens de serviço em vendas: fora do escopo (catálogo é preparação
-  para agendamentos — agora na Etapa 8); "serviços realizados" no
-  dashboard fica indisponível até lá.
+- Itens de serviço em vendas/PDV: fora do escopo da Etapa 8 (decisão
+  registrada); venda de serviço continua pelo catálogo de produtos.
+- Agenda: visão por dia apenas (semana/mês, recorrência, profissionais
+  e horário de funcionamento ficam para etapa futura).
+- Lembretes: antecipação fixa por empresa (sem janela de silêncio
+  por cliente nem lembrete de confirmação pós-atendimento).
 - Gráficos avançados (biblioteca, tooltips, zoom): introduzir
   dependência só quando houver necessidade real — hoje barras CSS
   atendem.
@@ -134,11 +143,13 @@ vazio (`ticketAverage: null`).
 - `2287bec` docs: registra push da etapa 6
 - `f81a077` feat(etapa-7): implementa dashboard e relatorios com agregacao server-side
 - `016ecaf` docs: registra hash do commit da etapa 7
-- Push confirmado: `2287bec..016ecaf main -> main` (inclui a Etapa 7).
-- Push anterior: `4e902d0..2287bec main -> main` (inclui a Etapa 6).
+- `a186e52` docs: registra push da etapa 7
+- Push confirmado: `016ecaf..a186e52 main -> main` (inclui a Etapa 7).
+- Push anterior: `2287bec..016ecaf main -> main` (inclui a Etapa 7).
 
 ## Próxima etapa autorizada
 
-**Etapa 8 — Agendamentos** — a iniciar somente após aprovação
+**Etapa 9 — Assinaturas** — a iniciar somente após aprovação
 explícita do proprietário (roadmap: 6=WhatsApp ✅, 7=Dashboard ✅,
-8=Agendamentos, 9=Assinaturas — conforme prompt oficial da Etapa 7).
+8=Agendamentos ✅, 9=Assinaturas — conforme roadmap do README;
+prompt oficial da Etapa 9 ainda não localizado em `Etapas_projeto/`).
