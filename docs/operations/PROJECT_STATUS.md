@@ -144,6 +144,7 @@ atualizados em `tests/reports.test.ts`.
 - `f81a077` feat(etapa-7): implementa dashboard e relatorios com agregacao server-side
 - `016ecaf` docs: registra hash do commit da etapa 7
 - `a186e52` docs: registra push da etapa 7
+- `cb018e5` feat(etapa-8): implementa agendamentos com conflito, lembretes e agenda
 - Push confirmado: `016ecaf..a186e52 main -> main` (inclui a Etapa 7).
 - Push anterior: `2287bec..016ecaf main -> main` (inclui a Etapa 7).
 
