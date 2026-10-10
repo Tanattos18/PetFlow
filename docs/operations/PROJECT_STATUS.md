@@ -133,8 +133,9 @@ vazio (`ticketAverage: null`).
 - `4e902d0` docs: registra hash do commit da etapa 6
 - `2287bec` docs: registra push da etapa 6
 - `f81a077` feat(etapa-7): implementa dashboard e relatorios com agregacao server-side
-- Push confirmado: `4e902d0..2287bec main -> main` (inclui a Etapa 6;
-  push anterior `e7bfd34..4e902d0`).
+- `016ecaf` docs: registra hash do commit da etapa 7
+- Push confirmado: `2287bec..016ecaf main -> main` (inclui a Etapa 7).
+- Push anterior: `4e902d0..2287bec main -> main` (inclui a Etapa 6).
 
 ## Próxima etapa autorizada
 
