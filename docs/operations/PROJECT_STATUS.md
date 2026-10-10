@@ -151,6 +151,7 @@ upsert/troca de plano (reinicia período, valida plano), renew
 - `cb018e5` feat(etapa-8): implementa agendamentos com conflito, lembretes e agenda
 - `671b3d6` docs: registra hash do commit da etapa 8
 - `fcd468b` docs: registra push da etapa 8
+- `7e7c1bb` feat(etapa-9): implementa assinaturas de clientes e billing do saas
 - Push confirmado: `671b3d6..fcd468b main -> main` (inclui a Etapa 8).
 - Push anterior: `a186e52..671b3d6 main -> main` (inclui a Etapa 8).
 
