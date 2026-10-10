@@ -2,6 +2,41 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Não categorizado] - 2026-10-10 - Redefinição de senha pelo painel
+
+### Adicionado
+
+- **Fluxo "Definir nova senha"** (`/redefinir-senha`, link na tela de
+  login): o usuário digita o email do seu usuário e a senha que quer
+  usar — pensado para o primeiro acesso/recuperação local sem
+  dependência de SMTP.
+- Endpoint `POST /api/auth/reset-password` (público): só responde
+  quando `PASSWORD_RESET_ENABLED=true` (senão 404), com rate limit
+  próprio (`reset|ip|email`, mesmo `LoginRateLimiter` do login),
+  política de senha 8..72 (schema `resetPasswordSchema` em
+  `@petflow/shared`, reaproveitando o novo `passwordFieldSchema`), 404
+  para usuário inativo/inexistente, 400 quando o email pertence a
+  várias contas e **revogação de todas as sessões abertas** do usuário
+  na mesma transação da troca de hash.
+- Flag `PASSWORD_RESET_ENABLED` em `apps/api/src/config/env.ts`
+  (padrão: desabilitado), documentada no `.env.example` e habilitada
+  no `.env` local.
+- Frontend: página `/redefinir-senha` (email + nova senha + confirmação,
+  estados de sucesso/erro) e link "Não consegue entrar? Defina sua
+  senha" em `/login`.
+- Testes: `tests/password-reset.test.ts` (7) — troca + login novo/
+  antigo, sessões revogadas, 404/400, flag desabilitada e rate limit;
+  `tests/setup-env.ts` habilita a flag nos testes. Suíte completa:
+  **374/374 testes em 17 arquivos**.
+
+### Segurança (decisão registrada)
+
+- O fluxo **não envia token por e-mail** (sem infra SMTP): a proteção é
+  a flag de ambiente (desabilitada por padrão) + rate limit. Em
+  produção, manter a flag desabilitada e implementar redefinição com
+  token enviado por e-mail — **pendência registrada** em
+  `PROJECT_STATUS.md`.
+
 ## [Etapa 9] — 2026-10-10 — Assinaturas e gestão comercial
 
 ### Adicionado

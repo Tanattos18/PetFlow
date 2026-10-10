@@ -127,6 +127,10 @@ upsert/troca de plano (reinicia período, valida plano), renew
   (sem escolha de método/cartão); renovação manual, sem cobrança
   recorrente automática; assinatura de cliente não tem edição de
   campos (cancelar + criar nova, decisão registrada).
+- **Redefinição de senha pelo painel** (pós-Etapa 9): fluxo local sem
+  token de e-mail (flag `PASSWORD_RESET_ENABLED` + rate limit) — em
+  produção, manter a flag desabilitada e implementar redefinição com
+  token enviado por e-mail.
 - CI e deploy (contínuos).
 
 ## Git

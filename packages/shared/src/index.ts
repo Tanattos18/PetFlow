@@ -40,13 +40,22 @@ export const loginSchema = z.object({
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
+export const passwordFieldSchema = z
+  .string()
+  .min(8, "Senha deve ter ao menos 8 caracteres")
+  .max(72, "Senha deve ter no máximo 72 caracteres");
+
+export const resetPasswordSchema = z.object({
+  email: emailFieldSchema,
+  password: passwordFieldSchema,
+});
+
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+
 export const createUserSchema = z.object({
   name: z.string().trim().min(2, "Nome deve ter ao menos 2 caracteres").max(120),
   email: emailFieldSchema,
-  password: z
-    .string()
-    .min(8, "Senha deve ter ao menos 8 caracteres")
-    .max(72, "Senha deve ter no máximo 72 caracteres"),
+  password: passwordFieldSchema,
   role: userRoleSchema.default("MEMBER"),
 });
 

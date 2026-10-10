@@ -33,6 +33,7 @@ O `.env` não é versionado. O `.env.example` contém apenas exemplos não secre
 | `AUTH_SESSION_TTL_HOURS` | validade da sessão (padrão 12h) |
 | `AUTH_COOKIE_SECURE` | `true` em produção (cookie `Secure`) |
 | `BOOTSTRAP_COMPANY_NAME`, `BOOTSTRAP_COMPANY_SLUG` | empresa do bootstrap |
+| `PASSWORD_RESET_ENABLED` | `true` habilita `POST /api/auth/reset-password` e a página `/redefinir-senha` (local/controllado; padrão desabilitado) |
 | `BOOTSTRAP_ADMIN_NAME`, `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` | primeiro administrador |
 
 ### Variáveis de ambiente (Etapa 6 — WhatsApp)

@@ -4,16 +4,24 @@ import {
   HttpCode,
   Inject,
   Ip,
+  NotFoundException,
   Post,
   Get,
   Req,
   Res,
 } from "@nestjs/common";
 import type { Request, Response } from "express";
-import { loginSchema, type LoginInput, type MeResponse } from "@petflow/shared";
+import {
+  loginSchema,
+  resetPasswordSchema,
+  type LoginInput,
+  type MeResponse,
+  type ResetPasswordInput,
+} from "@petflow/shared";
 import { Public } from "../common/decorators/public.decorator";
 import { Auth, type AuthContext } from "../common/decorators/auth.decorator";
 import { ZodValidationPipe } from "../common/pipes/zod-validation.pipe";
+import { env } from "../config/env";
 import { AuthService } from "./auth.service";
 import { LoginRateLimiter } from "./login-rate.limit";
 
@@ -41,6 +49,25 @@ export class AuthController {
     this.authService.setSessionCookie(response, result.token);
 
     return { user: result.user, company: result.company } satisfies MeResponse;
+  }
+
+  @Public()
+  @Post("reset-password")
+  @HttpCode(200)
+  async resetPassword(
+    @Body(new ZodValidationPipe(resetPasswordSchema)) body: ResetPasswordInput,
+    @Ip() ip: string,
+  ) {
+    if (!env.PASSWORD_RESET_ENABLED) {
+      throw new NotFoundException("Recurso indisponível");
+    }
+
+    const rateKey = `reset|${ip}|${body.email}`;
+    this.rateLimiter.check(rateKey);
+    await this.authService.resetPassword(body);
+    this.rateLimiter.reset(rateKey);
+
+    return { ok: true };
   }
 
   @Post("logout")

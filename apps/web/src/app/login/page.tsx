@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "../../lib/api";
 
@@ -107,6 +108,15 @@ export default function LoginPage() {
             {loading ? "Entrando..." : "Entrar"}
           </button>
         </form>
+
+        <p className="mt-4 text-center text-sm text-slate-500">
+          <Link
+            href="/redefinir-senha"
+            className="text-teal-700 hover:underline"
+          >
+            Não consegue entrar? Defina sua senha
+          </Link>
+        </p>
       </div>
     </div>
   );

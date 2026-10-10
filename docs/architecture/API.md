@@ -24,6 +24,7 @@ inclui `issues[]`).
 | Método | Rota | Acesso | Descrição |
 |---|---|---|---|
 | POST | `/api/auth/login` | público | Email+senha; retorna cookie HttpOnly |
+| POST | `/api/auth/reset-password` | público (flag) | Redefine a senha pelo email digitado; só responde quando `PASSWORD_RESET_ENABLED=true` (senão 404), com rate limit próprio (`reset|ip|email`); usuário inativo/inexistente → 404, email em múltiplas contas → 400; revoga as sessões abertas do usuário |
 | POST | `/api/auth/logout` | sessão | Revoga a sessão atual |
 | GET | `/api/auth/me` | sessão | Usuário + empresa autenticados |
 | GET | `/api/users` | ADMIN | Lista usuários da empresa |

@@ -20,9 +20,10 @@ trilha de auditoria em cada operação.
 2. [Roadmap — as 9 etapas](#roadmap--as-9-etapas)
 3. [Qualidade, segurança e auditoria](#qualidade-segurança-e-auditoria)
 4. [Passo a passo — como executar o projeto](#passo-a-passo--como-executar-o-projeto)
-5. [Estrutura do repositório](#estrutura-do-repositório)
-6. [Tecnologias](#tecnologias)
-7. [Documentação](#documentação)
+5. [Como usar o sistema](#como-usar-o-sistema)
+6. [Estrutura do repositório](#estrutura-do-repositório)
+7. [Tecnologias](#tecnologias)
+8. [Documentação](#documentação)
 
 ---
 
@@ -316,6 +317,167 @@ npm run db:validate    # schema Prisma
 
 Guia completo de ambiente em
 [`docs/operations/DEVELOPMENT.md`](docs/operations/DEVELOPMENT.md).
+
+---
+
+## Como usar o sistema
+
+Guia prático para o dia a dia de quem opera o PetFlow. Pré-condição: os
+três processos rodando (seção anterior) e o primeiro administrador criado
+com `npm run bootstrap:admin`.
+
+### Primeiro acesso
+
+1. Abra `http://localhost:3000` e entre com o e-mail/senha do
+   administrador definidos no `.env` (`BOOTSTRAP_ADMIN_*`).
+2. **Esqueceu a senha ou é a primeira vez?** Na tela de login, use o
+   link **"Não consegue entrar? Defina sua senha"** → informe o e-mail
+   do usuário e a senha que você quer usar (recurso local, ativado com
+   `PASSWORD_RESET_ENABLED=true` no `.env`; as sessões antigas são
+   encerradas).
+3. A **home** mostra a empresa, o seu papel e os cards de todos os
+   módulos — cada card leva direto à área correspondente.
+4. Para criar os demais usuários: `/usuarios` → **somente o
+   administrador** define nome, e-mail, senha e perfil (administrador ou
+   membro).
+5. Sessão é pessoal e revogável: **Sair** encerra no servidor; se a
+   sessão expirar, o sistema redireciona para o login automaticamente.
+
+### Perfis: o que cada um faz
+
+| Área | Administrador | Membro |
+|---|:--:|:--:|
+| Clientes, pets e fichas | sim | sim |
+| Vendas no PDV, agendamentos e leitura de relatórios | sim | sim |
+| Catálogo: serviços, produtos, categorias, fornecedores | sim | somente leitura |
+| Caixa: abrir, fechar, entradas/saídas e estorno | sim | somente leitura |
+| Cancelar venda, configurar/enviar WhatsApp e usuários | sim | — |
+| Planos, assinaturas de clientes e faturamento (SaaS) | sim | somente leitura |
+
+A regra é sempre a mesma: o frontend apenas reflete o que o servidor já
+exige — tentar uma ação sem permissão responde com erro, não com tela
+bonita.
+
+### Rotina de um dia de trabalho
+
+1. **Abra o caixa** (`/caixa`) informando o troco inicial — sem caixa
+   aberto, o PDV bloqueia venda e o pagamento/renovação de assinatura
+   responde 409.
+2. **Confira a agenda do dia** (`/agenda`): navegue ←/Hoje/→, confirme
+   ou conclua atendimentos; lembretes de WhatsApp saem sozinhos se a
+   antecedência estiver configurada.
+3. **Atenda no PDV** (`/pdv`): venda produtos (e dê baixa no estoque
+   automaticamente).
+4. **No fim do turno, feche o caixa** (`/caixa/fechar`): conte o
+   dinheiro fisicamente e informe — o sistema calcula saldo esperado e
+   diferença.
+5. **Acompanhe os números** (`/dashboard` e `/relatorios`).
+
+### Cadastrar a base (primeira vez)
+
+Na ordem recomendada:
+
+1. **Serviços** (`/servicos`, admin): nome, preço e duração — serão a
+   base da agenda e dos relatórios.
+2. **Clientes e pets** (`/clientes`, `/pets`): tutor primeiro, depois os
+   animais na ficha do tutor.
+3. **Produtos** (`/produtos` → categorias e fornecedores, admin):
+   cadastre o estoque inicial com uma **entrada** na ficha do produto.
+4. **Usuários** (`/usuarios`, admin): crie as contas da equipe com o
+   perfil correto.
+
+### Vender no PDV
+
+1. Com o caixa aberto, acesse `/pdv` e busque por **nome, SKU ou código
+   de barras**.
+2. Adicione itens ao carrinho, ajuste quantidades e (opcional) selecione
+   o **cliente**.
+3. Escolha a forma de pagamento (dinheiro, cartão, pix, outro), aplique
+   desconto se preciso e **finalize**.
+4. O comprovante com código único é exibido para impressão; a venda já
+   entra no histórico (`/vendas`) e, se em dinheiro, no caixa.
+5. Para **cancelar** (`/vendas` → detalhe): admin, com motivo obrigatório
+   — o estoque volta automaticamente e o lançamento compensatório é
+   registrado (nada é apagado).
+
+### Gerenciar o caixa e o financeiro
+
+- `/caixa` — situação atual, abertura, entradas/saídas manuais (saída
+  exige justificativa) e movimentações recentes.
+- `/caixa/movimentos` — histórico com filtros e **estorno** auditável de
+  lançamentos manuais.
+- `/caixa/sessoes` — turnos anteriores com abertura, fechamento e
+  diferença.
+- `/financeiro` — resumo por período (vendas, entradas, saídas,
+  cancelamentos, estornos e líquido).
+
+### Agendar atendimentos
+
+1. `/agenda` → **novo** (`/agenda/novo`): cliente, pet, serviço, data e
+   hora — o sistema calcula a duração pelo serviço e **recusa horário
+   ocupado** (conflito de toda a empresa, fim-início exato é aceito).
+2. No detalhe (`/agenda/[id]`): confirmar, concluir, marcar
+   "não compareceu" ou cancelar com motivo.
+3. **Lembrete automático**: em `/whatsapp`, selecione um template
+   aprovado com exatamente 3 variáveis, defina a antecedência (em
+   minutos) e garanta o consentimento (`OPTED_IN`) do cliente na ficha
+   dele — sem isso, nenhum lembrete é enfileirado.
+
+### Trabalhar com assinaturas
+
+1. Admin cadastra os pacotes em `/planos` (nome, preço, duração em
+   dias).
+2. Com o **caixa aberto**, em `/assinaturas` → **nova assinatura**:
+   escolha cliente e plano e mantenha marcado *"Registrar pagamento no
+   caixa"* para lançar a entrada junto.
+3. No detalhe da assinatura (`/assinaturas/[id]`): veja o histórico de
+   pagamentos, **renove** (o novo período começa do fim atual ou de
+   agora — nunca perde dias) ou **cancele** com motivo.
+4. Assinaturas vencidas aparecem como *Expiradas* automaticamente;
+   cancelada não é reativada (crie uma nova se o cliente voltar).
+
+### Enviar mensagens no WhatsApp
+
+1. `/whatsapp` → configure as credenciais da Cloud API (somente no
+   servidor) e use **Testar conexão**.
+2. Cadastre **templates** com variáveis `{{1}}`, `{{2}}`..., aprove e
+   ative o desejado.
+3. Registre o **consentimento** do cliente (opt-in na ficha do cliente;
+   opt-out por qualquer usuário ou respondendo "SAIR").
+4. Como **administrador**, envie mensagens em `/whatsapp/mensagens` e
+   acompanhe fila, tentativas e status (enviado/entregue/lido/falha) —
+   incluindo o lembrete de agendamento.
+
+### Acompanhar resultados
+
+- `/dashboard` — período editável (padrão 30 dias) com vendas, caixa,
+  estoque, clientes, mensagens e contagem de agendamentos.
+- `/relatorios` — abas de vendas, estoque, caixa, clientes e WhatsApp
+  com filtros; botão **CSV** exporta até 5000 linhas.
+
+### Faturamento da sua empresa no SaaS
+
+- `/faturamento` — veja o plano atual da sua empresa (essencial,
+  profissional ou completo), período vigente e status; admin pode trocar
+  de plano, renovar ou cancelar. A troca reinicia o período.
+
+### Mapa de páginas
+
+| Rota | Para quê | Quem usa |
+|---|---|---|
+| `/` | Home com cards de todos os módulos | todos |
+| `/login`, `/redefinir-senha` | Entrar e definir/recuperar a senha | todos |
+| `/usuarios` | Gerenciar contas e perfis | admin |
+| `/clientes`, `/pets` | Tutores e animais | todos |
+| `/servicos` | Catálogo de serviços (preço/duração) | admin escreve |
+| `/produtos`, `/categorias`, `/fornecedores` | Estoque e catálogo | admin escreve; entrada/saída de estoque: todos |
+| `/pdv`, `/vendas` | Vender e histórico (cancelar: admin) | todos |
+| `/caixa`, `/caixa/*`, `/financeiro` | Turnos, movimentos e resumo | admin opera, todos leem |
+| `/agenda` | Agendamentos do dia | todos |
+| `/planos`, `/assinaturas` | Planos e assinaturas de clientes | admin escreve |
+| `/faturamento` | Plano da empresa no PetFlow | admin |
+| `/whatsapp`, `/whatsapp/*` | Config, templates, consentimento e envios | admin (leitura: todos) |
+| `/dashboard`, `/relatorios` | Indicadores, relatórios e CSV | todos |
 
 ---
 

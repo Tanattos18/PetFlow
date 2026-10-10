@@ -1,11 +1,19 @@
-import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from "@nestjs/common";
 import type { Request } from "express";
 import { createHash, randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
 import { PrismaService } from "../prisma/prisma.module";
 import { env } from "../config/env";
-import type { LoginInput } from "@petflow/shared";
+import type { LoginInput, ResetPasswordInput } from "@petflow/shared";
 import type { AuthContext } from "../common/decorators/auth.decorator";
+
+const BCRYPT_ROUNDS = 12;
 
 @Injectable()
 export class AuthService {
@@ -71,6 +79,40 @@ export class AuthService {
         slug: user.company.slug,
       },
     };
+  }
+
+  async resetPassword(input: ResetPasswordInput): Promise<void> {
+    const candidates = await this.prisma.user.findMany({
+      where: {
+        email: input.email,
+        status: "ACTIVE",
+        company: { status: "ACTIVE" },
+      },
+    });
+
+    if (candidates.length === 0) {
+      throw new NotFoundException("Usuário não encontrado");
+    }
+
+    if (candidates.length > 1) {
+      throw new BadRequestException(
+        "Este email está associado a mais de uma conta. Contate o suporte.",
+      );
+    }
+
+    const user = candidates[0];
+    const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash },
+      }),
+      this.prisma.session.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
   }
 
   setSessionCookie(

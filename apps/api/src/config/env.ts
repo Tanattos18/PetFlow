@@ -17,6 +17,13 @@ const schema = z.object({
     .int()
     .nonnegative()
     .default(15 * 60 * 1000),
+  // Redefinição de senha pelo painel (/redefinir-senha) — desabilitada por
+  // padrão; habilitar apenas em ambiente local/controllado (sem verificação
+  // por token de e-mail nesta versão)
+  PASSWORD_RESET_ENABLED: z
+    .string()
+    .optional()
+    .transform((value) => value === "true"),
   APP_ORIGINS: z.string().default("http://localhost:3000"),
   // WhatsApp (Etapa 6) — segredos somente aqui, nunca no frontend/Git
   WHATSAPP_PROVIDER: z.enum(["mock", "meta"]).default("mock"),
