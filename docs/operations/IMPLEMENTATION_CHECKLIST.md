@@ -246,6 +246,62 @@ Escopo definido em `Etapas_projeto/PetFlow_Prompt_OpenCode_Etapa_6.md`.
       ARCHITECTURE, DEVELOPMENT, README, `.env.example`)
 - [x] Commit e push (ver relatório final / PROJECT_STATUS)
 
+## Etapa 7 — Dashboard e relatórios (2026-10-09)
+
+Escopo definido em `Etapas_projeto/PetFlow_Prompt_OpenCode_Etapa_7.md`.
+
+- [x] Etapa 6 confirmada funcional (251/251 testes antes de iniciar;
+      auditoria de lint/typecheck/build/db:validate sem problemas)
+- [x] Auditoria inicial: fontes de dados reais das Etapas 1–6,
+      serviços realizados sem estado → indicador indisponível, sem
+      lib de gráficos (decisão: barras CSS, zero dependências novas)
+- [x] Schemas Zod E7 em `@petflow/shared`: `reportDateField` com
+      validação de calendário real, `checkReportPeriod` (`from ≤ to`,
+      máx. 366 dias), default 30 dias, `json|csv` e schemas dos 6
+      relatórios (+ paginação reutilizando `paginationQuerySchema`)
+- [x] Migration aditiva `20261010002727_etapa7_report_indexes`
+      (`Client`/`Pet` com `@@index([companyId, createdAt])`)
+      aplicada em `petflow` e `petflow_test`; `npm run db:validate` OK
+- [x] `GET /api/reports/summary` — vendas (concluídas/canceladas,
+      líquido/bruto/descontos, ticket `null` sem vendas), por dia e
+      forma de pagamento (SQL puro), caixa (saldo esperado da sessão
+      aberta, `inCash`/totais), estoque (baixo/zerado), clientes e
+      pets novos, WhatsApp por status, `servicesRealized` com
+      `available:false`
+- [x] `GET /api/reports/sales` — totais separados concluídas ×
+      canceladas (filtro `status` afeta só a lista; `paymentMethod`
+      afeta os totais), lista paginada, filtros e isolamento
+- [x] `GET /api/reports/stock/alerts` (sem estoque ou no mínimo,
+      inativos excluídos, paginação) e
+      `/stock/movements` (totais por tipo zero-fill, filtros
+      `productId`/`type`/período)
+- [x] `GET /api/reports/cash` (inCash vs todos, estornos por
+      origem, sessões fechadas com diferença), `/clients` (novos +
+      pets por espécie), `/whatsapp` (status atual, falhas por
+      motivo — aceitação ≠ entrega)
+- [x] Período em UTC inclusivo (`T00:00:00.000Z`–`T23:59:59.999Z`),
+      documentado; validações 400 (inverso, >366 dias, formato e
+      data inválidas)
+- [x] CSV (`format=csv`) em vendas, alertas e movimentações:
+      helper com aspas/CRLF, anti-injeção (prefixo `'` em
+      `=+-@`), teto 5000 linhas, ignora paginação, filename com
+      data
+- [x] Leitura exige apenas sessão (sem `AdminGuard`); `companyId`
+      sempre da sessão (parâmetro de cliente ignorado); MEMBER pode
+      ler
+- [x] Frontend: `/dashboard` (período, KPIs, barras CSS por dia e
+      por forma de pagamento, card serviços indisponível),
+      `/relatorios` (abas vendas/estoque/caixa/clientes/whatsapp
+      com filtros, paginação e CSV), `lib/format.ts`,
+      `downloadCsv()`, home com cards, badge "Etapa 7"
+- [x] Testes: 292/292 aprovados em PostgreSQL real (41 novos em
+      `tests/reports.test.ts`)
+- [x] `npm run lint`, `npm run typecheck`, `npm run build`,
+      `npm run db:validate` OK; varredura de segredos sem achados
+- [x] Documentação atualizada (CHANGELOG, STATUS, DATABASE, API,
+      ARCHITECTURE, DEVELOPMENT, README)
+- [x] Commit e push (ver relatório final / PROJECT_STATUS)
+
 ## Etapas futuras — módulos de negócio
 
 - [x] Cadastro de clientes e animais (Etapa 5)
@@ -253,8 +309,8 @@ Escopo definido em `Etapas_projeto/PetFlow_Prompt_OpenCode_Etapa_6.md`.
 - [x] Vendas e PDV (Etapa 3)
 - [x] Caixa e financeiro (Etapa 4)
 - [x] Automação WhatsApp (Etapa 6 — Cloud API + fila + webhook + UI)
+- [x] Dashboard e relatórios (Etapa 7)
 - [ ] Catálogo de serviços está pronto (Etapa 5); agendamentos na Etapa 8
-- [ ] Dashboard e relatórios (Etapa 7 — próxima)
 - [ ] Assinaturas/multiempresa comercial (Etapa 9)
 
 > Regra: nenhuma etapa é iniciada sem autorização explícita; marcar itens aqui

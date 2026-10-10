@@ -5,9 +5,9 @@ Cadastros de clientes e animais, catálogo de serviços, produtos e estoque,
 vendas e ponto de venda, caixa e financeiro — com permissões por perfil,
 isolamento total entre empresas e trilha de auditoria em cada operação.
 
-> **Status:** 6 de 9 etapas concluídas (mais a fundação técnica do projeto).
-> Etapas 1–6 entregues e verificadas em 09/10/2026 (aguardando aprovação).
-> Próxima etapa: **Etapa 7 — Dashboard** (escopo a definir na abertura).
+> **Status:** 7 de 9 etapas concluídas (mais a fundação técnica do projeto).
+> Etapas 1–7 entregues e verificadas em 09/10/2026 (aguardando aprovação).
+> Próxima etapa: **Etapa 8 — Agendamentos** (escopo a definir na abertura).
 > Detalhes em [`docs/operations/PROJECT_STATUS.md`](docs/operations/PROJECT_STATUS.md).
 
 ---
@@ -121,6 +121,31 @@ isolamento total entre empresas e trilha de auditoria em cada operação.
 - **Gestão em `/whatsapp`:** status da conexão, templates, fila de
   mensagens com filtros e detalhe de cada envio.
 
+### Etapa 7 — Dashboard e relatórios
+
+- **Dashboard em tempo real** (`/dashboard`) com os indicadores
+  calculados no servidor a partir dos dados reais das etapas
+  anteriores: vendas (concluídas, canceladas, líquido, ticket
+  médio), caixa, estoque, clientes, pets e mensagens WhatsApp.
+- **Período editável** com padrão de 30 dias, fuso **UTC** e limites
+  de data documentados e testados (janela inclusiva dia a dia;
+  intervalo máximo de 366 dias).
+- **Gráfico de vendas por dia** e por forma de pagamento em barras
+  CSS — sem dependência nova de biblioteca de gráficos.
+- **Relatórios em `/relatorios`**: vendas (totais separados
+  concluídas × canceladas, filtros e paginação), estoque (alertas de
+  reposição e movimentações por tipo), caixa (dinheiro físico vs
+  todos os lançamentos, estornos e sessões), clientes/pets novos e
+  WhatsApp (status de entrega e falhas por motivo).
+- **Exportação CSV** com aspas padrão, limite de 5000 linhas e
+  proteção contra injeção de fórmulas (células iniciadas por
+  `=`, `+`, `-`, `@`).
+- **Serviços realizados ficam indisponíveis** até a Etapa 8 — o
+  dashboard nunca inventa dado que o sistema ainda não registra.
+- **Mesmas regras de segurança do restante:** leitura exige sessão,
+  cada empresa enxerga apenas os próprios números e o `companyId`
+  vem sempre da sessão.
+
 ---
 
 ## Roadmap — as 9 etapas
@@ -137,7 +162,8 @@ concluída.
 | **4** | Caixa e financeiro | **Concluída** |
 | **5** | Clientes, pets e serviços | **Concluída** |
 | **6** | Integração com WhatsApp (Cloud API) | **Concluída** |
-| **7** | Dashboard e relatórios gerenciais | **Próxima** |
+| **7** | Dashboard e relatórios gerenciais | **Concluída** |
+| **8** | Agendamentos | **Próxima** |
 | **8** | Agendamentos | Planejada |
 | **9** | Assinaturas e gestão comercial | Planejada |
 
@@ -159,12 +185,12 @@ concluída.
 | **Sessões seguras** | Cookie `HttpOnly` com hash SHA-256 no banco; revogação no logout e ao inativar usuários |
 | **Concorrência tratada** | Trava pessimista (`FOR UPDATE`) em ordem fixa: caixa → produtos — vendas simultâneas nunca corrompem saldo |
 
-**Evidências de verificação (Etapa 6):**
+**Evidências de verificação (Etapa 7):**
 
-- `251` testes automatizados em PostgreSQL real — **251 aprovados**
-  (61 novos de WhatsApp: fila, webhook, consentimento, provedor mock)
+- `292` testes automatizados em PostgreSQL real — **292 aprovados**
+  (41 novos de relatórios: agregações, fronteiras UTC, CSV, isolamento)
 - `npm run lint` — 0 erros · `npm run typecheck` — 4 workspaces OK
-- `npm run build` — API, web (27 rotas) e worker compilando · `npm run db:validate` — schema válido
+- `npm run build` — API, web e worker compilando · `npm run db:validate` — schema válido
 
 ---
 
@@ -288,4 +314,4 @@ automação do whatsapp/   base existente (preservada, fora do monorepo)
 
 ---
 
-**PetFlow** — 5 de 9 etapas entregues. Próxima: agendamentos.
+**PetFlow** — 7 de 9 etapas entregues. Próxima: agendamentos.

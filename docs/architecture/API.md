@@ -265,6 +265,49 @@ Comportamentos importantes:
 - Recurso de outra empresa → 404; token/access token aparecem apenas em
   configuração local (`.env`), nunca em resposta ou log.
 
+## Relatórios e dashboard (Etapa 7)
+
+Agregação **server-side** sobre os dados reais das Etapas 1–6 — nada
+é calculado no navegador e nenhum dado fictício é retornado. Todos os
+endpoints exigem apenas sessão (leitura), `companyId` vem sempre do
+contexto autenticado e aceitam `from`/`to` em `YYYY-MM-DD`.
+
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| GET | `/api/reports/summary` | sessão | KPIs: vendas (concluídas/canceladas, líquido/bruto/descontos, ticket médio), vendas por dia e por forma de pagamento, caixa (sessão aberta + `inCash`/totais), estoque (baixo/zerado), clientes/pets novos, WhatsApp por status, `modules.servicesRealized` |
+| GET | `/api/reports/sales` | sessão | Totais separados concluídas × canceladas + lista paginada; filtros `from`, `to`, `status`, `paymentMethod`, `page`, `pageSize`, `format` |
+| GET | `/api/reports/stock/alerts` | sessão | Produtos sem estoque ou no mínimo (inativos excluídos); `page`, `pageSize`, `format` |
+| GET | `/api/reports/stock/movements` | sessão | Totais por tipo (zero-fill) + lista; filtros `productId`, `type`, período, paginação, `format` |
+| GET | `/api/reports/cash` | sessão | `inCash` vs todos, estornos por origem, sessões abertas/fechadas no período |
+| GET | `/api/reports/clients` | sessão | Clientes e pets novos no período + pets por espécie |
+| GET | `/api/reports/whatsapp` | sessão | Contagem por status atual + falhas agrupadas por motivo |
+
+Comportamentos importantes:
+
+- **Período em UTC**: janela inclusiva `from T00:00:00.000Z`–
+  `to T23:59:59.999Z`; padrão dos últimos `30` dias ancorado no
+  `to`; intervalo máximo de `366` dias; `from > to`, formato ou
+  data de calendário inválidos → **400** com `issues`.
+- **Totais × lista (vendas)**: os totais separados concluídas ×
+  canceladas consideram o período e `paymentMethod`; o filtro
+  `status` altera **apenas** a lista de itens. Documentado aqui para
+  evitar surpresa de consumo.
+- **Ticket médio** = líquido ÷ vendas concluídas com 2 casas; sem
+  vendas no período o campo volta `null` (nunca `0` fingindo dado).
+- **Serviços realizados**: módulo `servicesRealized` vem sempre com
+  `available: false` + motivo — não existe estado de realização
+  antes da Etapa 8.
+- **WhatsApp**: contagem pelo status **atual** do registro;
+  `ACCEPTED` (aceito pela API Meta) não é `DELIVERED`.
+- **CSV** (`format=csv` em sales, stock/alerts, stock/movements):
+  `text/csv` + `Content-Disposition` com filename
+  `petflow_<relatório>_<from>_<to>.csv`, linhas separadas por CRLF,
+  escape por aspas e neutralização de injeção (célula iniciada por
+  `=`, `+`, `-`, `@` recebe apóstrofo); teto de `5000` linhas e
+  **ignora paginação**; exige sessão (401 sem cookie).
+- Recurso de outra empresa nunca aparece (404/escopo); parâmetro
+  `companyId` enviado pelo cliente é **ignorado**.
+
 ## Padrão para módulos futuros
 
 1. Modelo sempre com `companyId` + FK `Restrict` e índices por empresa.

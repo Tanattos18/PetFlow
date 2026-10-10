@@ -283,6 +283,7 @@ model Client {
   @@index([companyId, phone])
   @@index([companyId, mobile])
   @@index([companyId, email])
+  @@index([companyId, createdAt])
 }
 
 model Pet {
@@ -306,6 +307,7 @@ model Pet {
   @@index([companyId, status])
   @@index([companyId, name])
   @@index([clientId])
+  @@index([companyId, createdAt])
 }
 
 model Service {

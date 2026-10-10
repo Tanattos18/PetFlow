@@ -793,3 +793,96 @@ export const cancelWhatsAppMessageSchema = z.object({
     .max(300, "Motivo deve ter no máximo 300 caracteres"),
 });
 export type CancelWhatsAppMessageInput = z.infer<typeof cancelWhatsAppMessageSchema>;
+
+// ---------------------------------------------------------------------------
+// Etapa 7 — dashboard e relatórios
+// ---------------------------------------------------------------------------
+
+export const REPORT_TIMEZONE = "UTC" as const;
+export const REPORT_MAX_RANGE_DAYS = 366;
+export const REPORT_DEFAULT_RANGE_DAYS = 30;
+export const REPORT_CSV_MAX_ROWS = 5000;
+
+export const reportDateField = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Data deve estar no formato YYYY-MM-DD")
+  .refine(
+    (value) =>
+      !Number.isNaN(Date.parse(`${value}T00:00:00.000Z`)) &&
+      new Date(`${value}T00:00:00.000Z`).toISOString().slice(0, 10) === value,
+    "Data inválida",
+  );
+
+function checkReportPeriod(
+  value: { from?: string; to?: string },
+  ctx: z.RefinementCtx,
+): void {
+  if (!value.from || !value.to) return;
+  const fromMs = Date.parse(`${value.from}T00:00:00.000Z`);
+  const toMs = Date.parse(`${value.to}T00:00:00.000Z`);
+  if (Number.isNaN(fromMs) || Number.isNaN(toMs)) return;
+  if (fromMs > toMs) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["from"],
+      message: "Data inicial não pode ser posterior à final",
+    });
+    return;
+  }
+  const days = Math.round((toMs - fromMs) / 86_400_000) + 1;
+  if (days > REPORT_MAX_RANGE_DAYS) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["from"],
+      message: `Intervalo máximo é de ${REPORT_MAX_RANGE_DAYS} dias`,
+    });
+  }
+}
+
+const reportPeriodBase = z.object({
+  from: reportDateField.optional(),
+  to: reportDateField.optional(),
+});
+
+export const dashboardSummaryQuerySchema = reportPeriodBase.superRefine(checkReportPeriod);
+export type DashboardSummaryQuery = z.infer<typeof dashboardSummaryQuerySchema>;
+
+export const reportFormatSchema = z.enum(["json", "csv"]).default("json");
+export type ReportFormat = z.infer<typeof reportFormatSchema>;
+
+export const salesReportQuerySchema = reportPeriodBase
+  .extend(paginationQuerySchema.shape)
+  .extend({
+    status: saleStatusSchema.optional(),
+    paymentMethod: paymentMethodSchema.optional(),
+    format: reportFormatSchema,
+  })
+  .superRefine(checkReportPeriod);
+export type SalesReportQuery = z.infer<typeof salesReportQuerySchema>;
+
+export const stockAlertsReportQuerySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  format: reportFormatSchema,
+});
+export type StockAlertsReportQuery = z.infer<typeof stockAlertsReportQuerySchema>;
+
+export const stockMovementsReportQuerySchema = reportPeriodBase
+  .extend(paginationQuerySchema.shape)
+  .extend({
+    productId: z.string().trim().max(60).optional(),
+    type: stockMovementTypeSchema.optional(),
+    format: reportFormatSchema,
+  })
+  .superRefine(checkReportPeriod);
+export type StockMovementsReportQuery = z.infer<typeof stockMovementsReportQuerySchema>;
+
+export const cashReportQuerySchema = reportPeriodBase.superRefine(checkReportPeriod);
+export type CashReportQuery = z.infer<typeof cashReportQuerySchema>;
+
+export const clientsReportQuerySchema = reportPeriodBase.superRefine(checkReportPeriod);
+export type ClientsReportQuery = z.infer<typeof clientsReportQuerySchema>;
+
+export const whatsappReportQuerySchema = reportPeriodBase.superRefine(checkReportPeriod);
+export type WhatsAppReportQuery = z.infer<typeof whatsappReportQuerySchema>;

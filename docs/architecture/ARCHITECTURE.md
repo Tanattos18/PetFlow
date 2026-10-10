@@ -251,3 +251,43 @@ tests/        → testes compartilhados/integração
   (listagem global com filtros), `/servicos` (escrita ADMIN), seletor
   opcional de cliente no `/pdv`, coluna "Cliente" em `/vendas`;
   home lista "Clientes e animais" e "Serviços" como módulos disponíveis.
+
+## Módulo dashboard e relatórios (Etapa 7)
+
+- **Agregação sempre no servidor**: nenhuma soma/contagem/média roda
+  no navegador; o frontend só formata e desenha o que a API já
+  calculou (`ReportsService`). Consultas de maior custo (vendas por
+  dia, contagens por tipo/status) usam SQL puro com `companyId` no
+  `WHERE` — `COUNT` convertido de `BigInt`, `SUM` de decimal para
+  string com 2 casas (nunca `number` binário para dinheiro).
+- **Nenhum dado fictício**: tudo vem dos módulos 1–6; quando um
+  indicador ainda não existe no produto (serviços realizados, pré-Etapa
+  8), a resposta traz `available: false` + motivo em vez de zero
+  enganoso. Ticket médio sem vendas é `null`, não `0`.
+- **Período em UTC documentado e testado**: janela inclusiva
+  `T00:00:00.000Z`–`T23:59:59.999Z`, default 30 dias ancorado no `to`,
+  máximo 366 dias (validação Zod compartilhada, 400 com `issues`);
+  datas de calendário impossíveis (ex.: `2026-02-30`) são rejeitadas
+  por round-trip ISO — `Date.parse` do JavaScript sozinho aceitaria e
+  rolaria para o mês seguinte.
+- **Sem nova dependência de biblioteca de gráficos**: as dependências
+  de `apps/web` continuam apenas `next`, `react` e `tailwindcss`;
+  barras do dashboard/relatórios são divs CSS. Reavaliar apenas se a
+  UX exigir interação avançada.
+- **Segurança igual ao resto da API**: módulo sob `AuthGuard` global
+  (nenhum endpoint público), leitura sem `AdminGuard` (relatório é
+  dado operacional, MEMBER pode), `companyId` sempre do contexto
+  autenticado — `companyId` query-string é ignorado; recorte por
+  empresa aplicado em cada `groupBy`/`$queryRaw`.
+- **Semântica documentada dos totais de vendas**: totais separados
+  concluídas × canceladas usam período + `paymentMethod`; o filtro
+  `status` restringe só a lista. Mantém o dashboard e o relatório
+  consistentes entre si (testado).
+- **CSV com segurança**: helper próprio (`common/utils/csv.ts`) —
+  aspas, CRLF, prefixo `'` em célula iniciada por `=`, `+`, `-` ou
+  `@` (injeção de fórmula), teto `REPORT_CSV_MAX_ROWS=5000`, CSV
+  ignorando paginação e sempre com `Content-Disposition` de
+  download; streaming via `StreamableFile`.
+- **Índices justificados**: apenas `(companyId, createdAt)` em
+  `Client` e `Pet` (agregações por período); demais colunas já
+  tinham índices das etapas anteriores — ver `DATABASE.md`.

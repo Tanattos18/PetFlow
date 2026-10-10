@@ -2,6 +2,77 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Etapa 7] — 2026-10-09 — Dashboard e relatórios
+
+### Adicionado
+
+- **Escopo**: dashboard gerencial e relatórios com **agregação
+  server-side** sobre os dados reais das Etapas 1–6 — nenhum dado
+  fictício; serviços realizados ficam explicitamente indisponíveis
+  até a Etapa 8; sem nova dependência de biblioteca de gráficos
+  (barras CSS/Tailwind).
+- Schemas Zod compartilhados (`@petflow/shared`, seção "Etapa 7"):
+  `reportDateField` (YYYY-MM-DD + calendário real — `2026-02-30`
+  rejeitado), `checkReportPeriod` (`from ≤ to`, máximo
+  `REPORT_MAX_RANGE_DAYS=366` dias), período padrão
+  `REPORT_DEFAULT_RANGE_DAYS=30`, `reportFormatSchema` (`json|csv`),
+  `dashboardSummaryQuerySchema`, `salesReportQuerySchema`,
+  `stockAlertsReportQuerySchema`, `stockMovementsReportQuerySchema`,
+  `cashReportQuerySchema`, `clientsReportQuerySchema`,
+  `whatsappReportQuerySchema`.
+- **Período em UTC** (`REPORT_TIMEZONE="UTC"`): janela inclusiva
+  `T00:00:00.000Z`–`T23:59:59.999Z` do `from` ao `to`, documentada
+  e coberta por testes de fronteira.
+- Módulo `apps/api/src/reports` (`ReportsModule`, prefixo `/api`,
+  sob `AuthGuard` global — leitura exige apenas sessão, sem
+  `AdminGuard`):
+  - `GET /api/reports/summary` — vendas (concluídas/canceladas,
+    líquido, bruto, descontos, ticket médio com `null` quando não há
+    vendas), vendas por dia e por forma de pagamento (SQL puro),
+    caixa (sessão aberta com saldo esperado, entradas/saídas
+    `inCash` e totais), estoque (baixo/sem estoque), clientes e pets
+    novos, WhatsApp por status e `modules.servicesRealized`
+    (`available: false` + motivo).
+  - `GET /api/reports/sales` — totais separados concluídas ×
+    canceladas (filtro `status` afeta só a lista; `paymentMethod`
+    afeta os totais), lista paginada, `format=csv`.
+  - `GET /api/reports/stock/alerts` — produtos sem estoque
+    (`qty=0`) ou no mínimo (`qty>0` e `qty ≤ minimumStock`),
+    excluindo inativos; paginação e `format=csv`.
+  - `GET /api/reports/stock/movements` — totais por tipo (zero-
+    fill), filtros `productId`/`type`/período, paginação e
+    `format=csv`.
+  - `GET /api/reports/cash` — `inCash` vs todos, estornos por
+    origem, sessões fechadas no período (diferenças) e sessão
+    aberta.
+  - `GET /api/reports/clients` — clientes/pets novos por período e
+    pets por espécie.
+  - `GET /api/reports/whatsapp` — status atual (aceitação da API
+    não é entrega), falhas agrupadas por motivo.
+- Helper CSV (`apps/api/src/common/utils/csv.ts`): aspas, CRLF e
+  neutralização de injeção (célula iniciada por `=`, `+`, `-`, `@`
+  recebe apóstrofo); limite `REPORT_CSV_MAX_ROWS=5000`, CSV ignora
+  paginação; exportação disponível em vendas, alertas e
+  movimentações de estoque (Content-Disposition com filename
+  `petflow_*_YYYY-MM-DD.csv`).
+- Frontend: `/dashboard` (período editável, KPIs de vendas, caixa,
+  estoque, clientes, WhatsApp, vendas por dia em barras CSS, por
+  forma de pagamento e card "Módulo não disponível" de serviços),
+  `/relatorios` (abas vendas, estoque — alertas/movimentos —,
+  caixa, clientes, WhatsApp; filtros, paginação e botões CSV),
+  `lib/format.ts` (BRL, datas UTC), `downloadCsv()` em `lib/api.ts`;
+  home com cards "Dashboard" e "Relatórios"; badge "Etapa 7".
+- Migration aditiva `20261010002727_etapa7_report_indexes`: índices
+  `@@index([companyId, createdAt])` em `Client` e `Pet` para as
+  agregações por período (nenhum dado alterado); aplicada em
+  `petflow`; `npm run db:validate` OK.
+- Testes: `tests/reports.test.ts` com **41 testes** (agregações,
+  fronteiras de data UTC, default de 30 dias, validações 400,
+  filtros/paginação, alertas, caixa `inCash` vs todos + estornos,
+  espécies, WhatsApp status/falhas, isolamento multiempresa,
+  permissões MEMBER/401, CSV com anti-injeção e estado vazio com
+  `ticketAverage: null`).
+
 ## [Etapa 6] — 2026-10-09 — Integração com WhatsApp
 
 ### Adicionado

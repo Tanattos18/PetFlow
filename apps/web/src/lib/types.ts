@@ -503,3 +503,195 @@ export interface WhatsAppMessageDto {
   createdBy: { id: string; name: string } | null;
   attemptsLog?: WhatsAppMessageAttemptDto[];
 }
+
+// ---------------------------------------------------------------------------
+// Etapa 7 — dashboard e relatórios
+// ---------------------------------------------------------------------------
+
+export interface ReportPeriod {
+  from: string;
+  to: string;
+  timezone: string;
+}
+
+export interface ModuleAvailability {
+  available: boolean;
+  reason: string;
+}
+
+export interface DashboardSummaryDto {
+  period: ReportPeriod;
+  generatedAt: string;
+  sales: {
+    completedCount: number;
+    gross: string;
+    discounts: string;
+    net: string;
+    cancelledCount: number;
+    cancelledTotal: string;
+    ticketAverage: string | null;
+  };
+  salesByDay: Array<{ day: string; count: number; net: string }>;
+  salesByPaymentMethod: Array<{
+    paymentMethod: PaymentMethod;
+    label: string;
+    count: number;
+    net: string;
+  }>;
+  cash: {
+    openSession: {
+      id: string;
+      openedAt: string;
+      initialAmount: string;
+      expectedBalance: string;
+    } | null;
+    entriesInCash: string;
+    exitsInCash: string;
+    entriesTotal: string;
+    exitsTotal: string;
+  };
+  stock: { outOfStockCount: number; lowStockCount: number };
+  clients: { newClients: number; newPets: number };
+  whatsapp: {
+    total: number;
+    pending: number;
+    accepted: number;
+    sent: number;
+    delivered: number;
+    read: number;
+    failed: number;
+    cancelled: number;
+  };
+  modules: { servicesRealized: ModuleAvailability };
+}
+
+export interface SaleReportItemDto {
+  id: string;
+  receiptCode: string;
+  createdAt: string;
+  status: SaleStatus;
+  paymentMethod: PaymentMethod;
+  subtotal: string;
+  discount: string;
+  total: string;
+  client: string | null;
+  createdBy: string;
+}
+
+export interface SalesReportDto {
+  period: ReportPeriod;
+  generatedAt: string;
+  totals: {
+    completed: { count: number; gross: string; discounts: string; net: string };
+    cancelled: { count: number; total: string };
+  };
+  items: SaleReportItemDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface StockAlertItemDto {
+  id: string;
+  name: string;
+  sku: string | null;
+  unit: ProductUnit;
+  unitLabel: string;
+  stockQuantity: string;
+  minimumStock: string;
+  alert: "OUT_OF_STOCK" | "LOW_STOCK";
+}
+
+export interface StockAlertsReportDto {
+  generatedAt: string;
+  alerts: { total: number; outOfStockCount: number; lowStockCount: number };
+  items: StockAlertItemDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface StockMovementReportItemDto {
+  id: string;
+  createdAt: string;
+  type: StockMovementType;
+  typeLabel: string;
+  quantity: string;
+  reference: string | null;
+  notes: string | null;
+  product: { name: string; sku: string | null };
+  createdBy: string;
+}
+
+export interface StockMovementsReportDto {
+  period: ReportPeriod;
+  generatedAt: string;
+  totals: {
+    count: number;
+    byType: Array<{ type: StockMovementType; label: string; count: number; quantity: string }>;
+  };
+  items: StockMovementReportItemDto[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface CashReportDto {
+  period: ReportPeriod;
+  generatedAt: string;
+  movements: {
+    inCash: { entries: string; exits: string; net: string };
+    all: { entries: string; exits: string };
+    byOrigin: Array<{
+      origin: CashMovementOrigin;
+      originLabel: string;
+      type: "IN" | "OUT";
+      typeLabel: string;
+      count: number;
+      total: string;
+    }>;
+    reversals: { count: number; total: string };
+  };
+  sessions: {
+    openedCount: number;
+    closedCount: number;
+    closedWithDifferenceCount: number;
+    totalDifference: string;
+    items: Array<{
+      id: string;
+      status: CashSessionStatus;
+      openedAt: string;
+      closedAt: string | null;
+      initialAmount: string;
+      countedAmount: string | null;
+      expectedAmount: string | null;
+      difference: string | null;
+    }>;
+  };
+}
+
+export interface ClientsReportDto {
+  period: ReportPeriod;
+  generatedAt: string;
+  newClients: number;
+  newPets: number;
+  petsBySpecies: Array<{ species: PetSpecies; label: string; count: number }>;
+  servicesRealized: ModuleAvailability;
+}
+
+export interface WhatsAppReportDto {
+  period: ReportPeriod;
+  generatedAt: string;
+  total: number;
+  byStatus: Array<{ status: WhatsAppMessageStatus; label: string; count: number }>;
+  states: {
+    pending: number;
+    accepted: number;
+    sent: number;
+    delivered: number;
+    read: number;
+    failed: number;
+    cancelled: number;
+  };
+  failed: { count: number; byReason: Array<{ reason: string; count: number }> };
+}

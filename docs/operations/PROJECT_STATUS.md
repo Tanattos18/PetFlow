@@ -2,65 +2,61 @@
 
 ## Etapa atual
 
-**Etapa 6 — Integração com WhatsApp** — CONCLUÍDA
+**Etapa 7 — Dashboard e relatórios** — CONCLUÍDA
 (aguardando aprovação do proprietário para avançar).
 
 Data: 2026-10-09.
 
 Etapas anteriores: Etapa 0 (2026-10-09), Etapa 1 (2026-10-09),
 Etapa 2 (2026-10-09), Etapa 3 (2026-10-09), Etapa 4 (2026-10-09),
-Etapa 5 (2026-10-09).
+Etapa 5 (2026-10-09), Etapa 6 (2026-10-09).
 
-Escopo: WhatsApp Business Cloud API (Meta) como provedor de mensagens,
-fila em PostgreSQL processada pelo `apps/worker` (sem Redis/BullMQ),
-webhook oficial com verificação de assinatura, consentimento auditável
-e frontend de gestão — sem scraping/QR, sem inventar agendamentos, sem
-tocar em `automação do whatsapp/`.
+Escopo: dashboard gerencial e relatórios com agregação server-side
+sobre dados reais das Etapas 1–6 (sem dados fictícios); período em
+UTC documentado e testado; CSV opcional com proteção contra injeção;
+serviços realizados explicitamente indisponíveis até a Etapa 8; sem
+nova dependência de biblioteca de gráficos.
 
-## Entregas concluídas (Etapa 6)
+## Entregas concluídas (Etapa 7)
 
-- [x] Migration aditiva `20261009232055_etapa6_whatsapp_integration`
-      aplicada em `petflow` (dev) e `petflow_test` (testes); schema
-      validado; nenhum dado existente alterado.
-- [x] Modelos: `WhatsAppConfig`, `WhatsAppTemplate`,
-      `WhatsAppConsent`, `WhatsAppMessage`, `WhatsAppSendAttempt`,
-      `WhatsAppWebhookEvent` (+ 8 enums WhatsApp), todos com
-      `companyId`, FK `Restrict` e índices multiempresa.
-- [x] Pacote `@petflow/whatsapp`: E.164 (`toE164`/`isE164`),
-      classificação de erros (429/408/5xx = TRANSIENT),
-      backoff exponencial 5s·2^n (cap 300s), opt-out textual,
-      `MetaCloudProvider` (fetch injetável, scrub de segredos) e
-      `MockWhatsAppProvider` determinístico.
-- [x] Schemas Zod E6 em `@petflow/shared` (config, template com
-      variáveis `{{n}}`, consentimento E.164, mensagem, cancelamento)
-      + labels PT-BR.
-- [x] API módulos `whatsapp` (prefixo `/api`, sob `AuthGuard` global):
-      `config` (GET/PUT, health POST, status PATCH — escrita ADMIN,
-      token nunca exposto), `templates` (catálogo/criação/aprovação/
-      status), `consents` (por cliente, opt-in ADMIN, opt-out
-      auditável), `messages` (listagem com filtros, enfileiramento
-      idempotente por `clientRequestId`, cancelamento).
-- [x] Webhook Meta (`@Public`): `GET` com challenge em `text/plain`,
-      `POST` com verificação `x-hub-signature-256` sobre `rawBody`
-      (403 em assinatura inválida), eventos idempotentes por `wamid`,
-      status sent/delivered/read/failed (retry TRANSIENT) e resposta
-      "SAIR" → `OPTED_OUT` (source `REPLY`).
-- [x] Fila de envio em `apps/worker`: claim atômico
-      (`updateMany` PENDING→SENDING), consentimento/desconexão como
-      cancelamento, transação attempt+update, backoff,
-      `MAX_ATTEMPTS=3` → FAILED, rate limit por ciclo
-      (`WHATSAPP_SEND_MAX_PER_CYCLE`/`WHATSAPP_SEND_INTERVAL_MS`),
-      loop com heartbeat e shutdown gracioso (SIGINT/SIGTERM).
-- [x] Envio só server-side: cliente nunca controla status/saldo/
-      provedor; leituras individuais via `findFirst({ id, companyId })`
-      → 404; bloqueio de envio sem consentimento `OPTED_IN`.
-- [x] Frontend: badge "Etapa 6 — Integração com WhatsApp";
-      `/whatsapp` (status, credenciais, teste de conexão,
-      desconectar/reconectar), `/whatsapp/templates` (criar,
-      aprovação, ativar/inativar), `/whatsapp/mensagens` (lista com
-      filtros, envio com variáveis, cancelar), `/whatsapp/mensagens/[id]`
-      (detalhe + tentativas); seção "Consentimento WhatsApp" em
-      `/clientes/[id]`; card "Automação WhatsApp" disponível na home.
+- [x] Auditoria inicial: fontes de dados dos 6 módulos existentes,
+      padrões de serviço/controller/teste reaproveitados, sem lib de
+      gráficos nas dependências (decisão: barras CSS/Tailwind).
+- [x] Schemas Zod E7 em `@petflow/shared` (seção "Etapa 7"):
+      `reportDateField` valida calendário real (round-trip ISO),
+      `checkReportPeriod` (`from ≤ to`, máximo 366 dias), período
+      padrão de 30 dias, formatos `json|csv` e schemas dos 6
+      relatórios (+ paginação).
+- [x] Migration aditiva `20261010002727_etapa7_report_indexes`
+      (`Client` e `Pet` com `@@index([companyId, createdAt])`)
+      aplicada em `petflow` (dev) e `petflow_test` (testes);
+      schema validado; nenhum dado alterado.
+- [x] Módulo `apps/api/src/reports` (`ReportsModule`):
+      `GET /api/reports/summary` (vendas, por dia/forma de pagamento
+      em SQL, caixa, estoque, clientes/pets, WhatsApp,
+      `servicesRealized.available=false`), `/sales` (totais
+      concluídas × canceladas, filtros, paginação), `/stock/alerts`
+      (sem estoque ou no mínimo, sem inativos), `/stock/movements`
+      (totais por tipo zero-fill), `/cash` (inCash vs todos,
+      estornos, sessões), `/clients` (novos + espécies) e
+      `/whatsapp` (status atual + falhas por motivo).
+- [x] Período em UTC inclusivo `T00:00:00.000Z`–`T23:59:59.999Z`,
+      default 30 dias, máx. 366; ticket médio com `null` sem
+      vendas; totais do relatório de vendas sempre separados por
+      status (filtro `status` afeta só a lista; `paymentMethod`
+      afeta os totais).
+- [x] Helper CSV com aspas/CRLF e neutralização de injeção
+      (`=`, `+`, `-`, `@` → apóstrofo), teto de 5000 linhas, ignora
+      paginação; exportação em vendas, alertas e movimentações
+      (`format=csv` + Content-Disposition).
+- [x] Frontend: `/dashboard` (período, KPIs, barras CSS de vendas
+      por dia e por forma de pagamento, card de serviços
+      indisponível), `/relatorios` (5 abas com filtros, paginação e
+      CSV), `lib/format.ts`, `downloadCsv()`; home com "Dashboard" e
+      "Relatórios"; badge "Etapa 7".
+- [x] Leitura de relatórios exige apenas sessão (sem `AdminGuard`);
+      `companyId` sempre da sessão — parâmetro de cliente é
+      ignorado.
 
 ## Testes executados
 
@@ -69,19 +65,23 @@ tocar em `automação do whatsapp/`.
 | Schema Prisma válido | `npm run db:validate` | OK |
 | Lint | `npm run lint` | OK (0 erros) |
 | Typecheck | `npm run typecheck` | OK (4 workspaces) |
-| Testes (PostgreSQL real) | `npm test` | 251/251 aprovados (12 arquivos) |
-| Build | `npm run build` | OK (shared, api, web, worker; 27 rotas) |
+| Testes (PostgreSQL real) | `npm test` | 292/292 aprovados (13 arquivos) |
+| Build | `npm run build` | OK (shared, api, web, worker) |
 
-Cobertura dos testes novos (61, `tests/whatsapp.test.ts`): E.164,
-classificação de HTTP e backoff, opt-out textual; config com sanitização
-de token e permissões; templates com contagem de variáveis e
-isolamento; consentimento (opt-in ADMIN, opt-out, 404 cross-tenant);
-enfileiramento (validações completas, idempotência, 404 cross-tenant);
-fila (ACCEPTED não entregue, claim concorrente → 1 envio, transient
-reagenda, 3 tentativas → FAILED, permanent imediato, cancelamentos,
-rate limit); webhook (challenge, 403 por assinatura, delivered,
-duplicado idempotente, anti-regressão, failed, "SAIR" → opt-out, JSON
-inválido).
+Cobertura dos testes novos (41, `tests/reports.test.ts`): agregações
+de vendas (líquido/bruto/descontos/cancelamentos/ticket com
+rounding), fronteiras de data UTC (00:00:00.000 inclusivo,
+23:59:59.999 do dia vizinho excluído), default de 30 dias, validação
+de período (inverso, >366 dias, formato e data de calendário
+inválidos → 400), filtros e paginação (status afeta só a lista),
+consistência resumo × relatório, alertas de estoque (baixo/zerado,
+inativo excluído), movimentos por tipo e período, caixa (`inCash`
+vs todos, estorno, sessão fechada com diferença), clientes/pets por
+período e espécie, WhatsApp (aceitação ≠ entrega, falhas por
+motivo), isolamento multiempresa em todos os relatórios, permissões
+(401 sem sessão em todos os endpoints, MEMBER pode ler), CSV
+(content-type, filename, anti-injeção, ignora paginação) e estado
+vazio (`ticketAverage: null`).
 
 ## Pendências conhecidas
 
@@ -102,12 +102,18 @@ inválido).
 - Duplicidade de clientes: janela de corrida aceita (sem unique duro de
   `nameKey`).
 - Itens de serviço em vendas: fora do escopo (catálogo é preparação
-  para agendamentos — agora na Etapa 8).
+  para agendamentos — agora na Etapa 8); "serviços realizados" no
+  dashboard fica indisponível até lá.
+- Gráficos avançados (biblioteca, tooltips, zoom): introduzir
+  dependência só quando houver necessidade real — hoje barras CSS
+  atendem.
 - Estoque negativo nunca é permitido por padrão; backorder seria decisão
   explícita.
 - Formas de pagamento configuráveis além de Dinheiro/Cartão/Pix/Outro.
 - Vendas anteriores à Etapa 4 (sem `cashSessionId`/lançamento) ficam fora
   do financeiro — limitação de dados de desenvolvimento.
+- CSV de caixa, clientes e WhatsApp: não implementado (opcional no
+  escopo; JSON cobre os casos).
 - CI e deploy (contínuos).
 
 ## Git
@@ -125,11 +131,12 @@ inválido).
 - `e7bfd34` docs: registra hash do commit da etapa 5
 - `f81db3c` feat(etapa-6): integra WhatsApp Cloud API com fila, webhook e frontend
 - `4e902d0` docs: registra hash do commit da etapa 6
-- Push confirmado: `e7bfd34..4e902d0 main -> main` (inclui a Etapa 6;
-  push anterior `2af5ba7..9d273b9` incluiu a Etapa 5).
+- `2287bec` docs: registra push da etapa 6
+- Push confirmado: `4e902d0..2287bec main -> main` (inclui a Etapa 6;
+  push anterior `e7bfd34..4e902d0`).
 
 ## Próxima etapa autorizada
 
-**Etapa 7 — Dashboard** — a iniciar somente após aprovação explícita
-do proprietário (roadmap: 6=WhatsApp ✅, 7=Dashboard, 8=Agendamentos,
-9=Assinaturas — conforme prompt oficial da Etapa 6).
+**Etapa 8 — Agendamentos** — a iniciar somente após aprovação
+explícita do proprietário (roadmap: 6=WhatsApp ✅, 7=Dashboard ✅,
+8=Agendamentos, 9=Assinaturas — conforme prompt oficial da Etapa 7).

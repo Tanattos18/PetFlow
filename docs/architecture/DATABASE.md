@@ -1,5 +1,28 @@
 # Banco de dados — diretrizes e modelo atual
 
+## Modelos implementados (Etapa 7)
+
+Migration: `database/prisma/migrations/20261010002727_etapa7_report_indexes`
+(aditiva — apenas índices; não altera nem remove dados existentes).
+
+A Etapa 7 (dashboard/relatórios) **não cria modelos novos**: ela agrega
+dados já existentes das Etapas 1–6. A mudança de schema foi limitada
+aos índices que sustentam as consultas por período:
+
+| Modelo | Índice adicionado | Justificativa |
+|---|---|---|
+| `Client` | `@@index([companyId, createdAt])` | Relatórios de clientes novos por período (`WHERE companyId = ? AND createdAt BETWEEN from AND to`). |
+| `Pet` | `@@index([companyId, createdAt])` | Contagem de pets novos por período no resumo e no relatório de clientes. |
+
+- Demais agregações (vendas, movimentos de estoque e caixa,
+  mensagens WhatsApp) usam índices `(companyId, createdAt)` ou de
+  filtro já existentes desde as Etapas 2–6 — nenhuma duplicação foi
+  criada.
+- Consultas de alta frequência com agregação (`SUM`/`COUNT` por dia,
+  por tipo e por status) rodam em SQL puro no servidor, sempre com
+  `companyId` no `WHERE`; tabelas são referenciadas com aspas no
+  padrão PascalCase do Prisma (`"Sale"`, `"Product"`).
+
 ## Modelos implementados (Etapa 6)
 
 Migration: `database/prisma/migrations/20261009232055_etapa6_whatsapp_integration`

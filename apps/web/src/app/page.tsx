@@ -43,7 +43,18 @@ const plannedModules = [
     href: "/whatsapp",
     available: true,
   },
-  { name: "Dashboard e relatórios", description: "Indicadores gerenciais" },
+  {
+    name: "Dashboard",
+    description: "Indicadores de vendas, caixa, estoque e clientes",
+    href: "/dashboard",
+    available: true,
+  },
+  {
+    name: "Relatórios",
+    description: "Vendas, estoque, caixa, clientes e WhatsApp por período",
+    href: "/relatorios",
+    available: true,
+  },
   { name: "Agendamentos", description: "Banho, tosa e agenda" },
 ];
 

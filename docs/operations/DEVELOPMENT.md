@@ -166,6 +166,27 @@ Etapa 1; os demais endpoints ficam em `/api/...`.
   determinístico) rodam no `petflow_test` via `npm test`; a migration
   é aplicada no setup.
 
+## Dashboard e relatórios (Etapa 7)
+
+- Endpoints, parâmetros e semântica: `docs/architecture/API.md`.
+- Período sempre em **UTC**: `from`/`to` em `YYYY-MM-DD`, janela
+  inclusiva dia a dia, padrão de 30 dias, máximo de 366; o fuso e as
+  regras são constantes em `@petflow/shared`
+  (`REPORT_TIMEZONE`, `REPORT_*_RANGE_DAYS`).
+- Relatórios exigem apenas sessão (MEMBER pode ler); nenhum cálculo
+  é feito no navegador; `companyId` enviado pelo cliente é ignorado.
+- CSV: `format=csv` em vendas, alertas e movimentações de estoque
+  (teto 5000 linhas, ignora paginação, células iniciadas por
+  `=`, `+`, `-`, `@` neutralizadas com apóstrofo). Os demais
+  relatórios retornam JSON.
+- Páginas novas: `/dashboard` e `/relatorios` (abas de vendas,
+  estoque, caixa, clientes e WhatsApp). Barras dos gráficos são CSS
+  puro — o projeto não usa biblioteca de charts.
+- Migração da etapa: `20261010002727_etapa7_report_indexes` (apenas
+  índices `(companyId, createdAt)` em `Client`/`Pet`).
+- Testes novos em `tests/reports.test.ts` rodam no `petflow_test`
+  via `npm test`; a migration é aplicada no setup.
+
 ## Estrutura rápida
 
 Ver `docs/architecture/ARCHITECTURE.md` e o `README.md` na raiz.
