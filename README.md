@@ -2,13 +2,15 @@
 
 **SaaS de gestão para pet shops de pequeno porte.**
 Cadastros de clientes e animais, catálogo de serviços, produtos e estoque,
-vendas e ponto de venda, caixa e financeiro — com permissões por perfil,
-isolamento total entre empresas e trilha de auditoria em cada operação.
+vendas e ponto de venda, caixa e financeiro, agendamentos e assinaturas
+recorrentes — com permissões por perfil, isolamento total entre empresas e
+trilha de auditoria em cada operação.
 
-> **Status:** 8 de 9 etapas concluídas (mais a fundação técnica do projeto).
-> Etapas 1–8 entregues e verificadas em 10/10/2026 (aguardando aprovação).
-> Próxima etapa: **Etapa 9 — Assinaturas** (escopo a definir na abertura).
-> Detalhes em [`docs/operations/PROJECT_STATUS.md`](docs/operations/PROJECT_STATUS.md).
+> **Status:** 9 de 9 etapas concluídas (mais a fundação técnica do projeto).
+> Etapas 1–9 entregues e verificadas em 10/10/2026 (aguardando aprovação).
+> Roadmap do produto completo; próximos passos em
+> [`docs/operations/PROJECT_STATUS.md`](docs/operations/PROJECT_STATUS.md)
+> (pendências: CI/deploy, enforcement de billing, gateway etc.).
 
 ---
 
@@ -169,6 +171,30 @@ isolamento total entre empresas e trilha de auditoria em cada operação.
   status no dashboard e em clientes; "serviços realizados" agora
   disponível.
 
+### Etapa 9 — Assinaturas e gestão comercial
+
+- **Planos de assinatura em `/planos`**: nome único por empresa,
+  preço, duração em dias e ativação/inativação — escrita restrita ao
+  administrador.
+- **Assinaturas de clientes em `/assinaturas`**: criação
+  (`/assinaturas/nova`) com cliente e plano validados no servidor,
+  listagem com filtros de status/busca, detalhe com histórico de
+  pagamentos (`/assinaturas/[id]`).
+- **Pagamento pelo caixa, sem gateway**: criar com pagamento e
+  renovar exigem caixa aberto (409) e geram lançamento de entrada
+  vinculado — o preço sempre vem do plano, nunca do cliente.
+- **Renovação que não perde dias**: novo período começa em
+  `max(agora, fim atual)`, com contador de renovações e registro do
+  último pagamento; assinatura cancelada não é reativada.
+- **Cancelamento auditado**: motivo obrigatório (3..500), autor e
+  data registrados; dupla corrida responde 409.
+- **Expiração automática nas leituras**: períodos vencidos viram
+  `EXPIRED` sem job em segundo plano.
+- **Faturamento do PetFlow em `/faturamento`**: catálogo de planos
+  globais (seed da migration), situação da assinatura da empresa e
+  troca de plano, renovação ou cancelamento — a escrita do catálogo
+  global fica para papel de plataforma (pendência registrada).
+
 ---
 
 ## Roadmap — as 9 etapas
@@ -187,7 +213,7 @@ concluída.
 | **6** | Integração com WhatsApp (Cloud API) | **Concluída** |
 | **7** | Dashboard e relatórios gerenciais | **Concluída** |
 | **8** | Agendamentos | **Concluída** |
-| **9** | Assinaturas e gestão comercial | **Próxima** |
+| **9** | Assinaturas e gestão comercial | **Concluída** |
 
 > O escopo detalhado de cada etapa futura é definido no início da etapa
 > correspondente e registrado em
@@ -207,13 +233,14 @@ concluída.
 | **Sessões seguras** | Cookie `HttpOnly` com hash SHA-256 no banco; revogação no logout e ao inativar usuários |
 | **Concorrência tratada** | Trava pessimista (`FOR UPDATE`) em ordem fixa: caixa → produtos — vendas simultâneas nunca corrompem saldo |
 
-**Evidências de verificação (Etapa 8):**
+**Evidências de verificação (Etapa 9):**
 
-- `337` testes automatizados em PostgreSQL real — **337 aprovados**
-  (45 novos de agendamentos: conflito, transições, lembretes,
-  isolamento)
-- `npm run lint` — 0 erros · `npm run typecheck` — 4 workspaces OK
-- `npm run build` — API, web e worker compilando · `npm run db:validate` — schema válido
+- `367` testes automatizados em PostgreSQL real — **367 aprovados**
+  (30 novos: 18 de assinaturas e 12 de billing — caixa fechado 409,
+  renovação, cancelamento, guards ADMIN, cross-tenant)
+- `npm run lint` — 0 erros · `npm run typecheck` — 5 workspaces OK
+- `npm run build` — shared, whatsapp, API, web e worker compilando ·
+  `npm run db:validate` — schema válido
 
 ---
 
@@ -337,4 +364,4 @@ automação do whatsapp/   base existente (preservada, fora do monorepo)
 
 ---
 
-**PetFlow** — 8 de 9 etapas entregues. Próxima: assinaturas.
+**PetFlow** — 9 de 9 etapas entregues (roadmap completo).

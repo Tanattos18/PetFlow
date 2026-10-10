@@ -2,6 +2,76 @@
 
 Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [Etapa 9] — 2026-10-10 — Assinaturas e gestão comercial
+
+### Adicionado
+
+- **Escopo**: assinaturas recorrentes de clientes do pet shop (planos,
+  criação, renovação via caixa e cancelamento com motivo) + billing da
+  própria empresa no SaaS (catálogo de planos globais e assinatura do
+  tenant). Sem prompt oficial em `Etapas_projeto/` — escopo definido e
+  **aprovado na conversa** com o proprietário (opções "Ambos" e
+  "pagamento via caixa/venda existente"); decisões registradas:
+  pagamento sempre em dinheiro no caixa (sem gateway), cancelamento
+  com motivo obrigatório para assinatura de cliente e opcional para o
+  billing, catálogo global do billing sem escrita via API nesta etapa.
+- Schemas Zod E9 (`@petflow/shared`, seção "Etapa 9"):
+  `subscriptionStatusSchema`/`tenantSubscriptionStatusSchema`
+  (ACTIVE/EXPIRED/CANCELLED) + labels,
+  `SUBSCRIPTION_MIN/MAX_DURATION_DAYS` (1/3650),
+  `TENANT_PLAN_DEFAULT_DURATION_DAYS=30`, `create/updateSubscriptionPlanSchema`
+  (reaproveita `nameField`/`priceFieldSchema`), `listSubscriptionPlansQuerySchema`,
+  `createSubscriptionSchema` (`clientId`, `planId`, `startAt` opcional ISO,
+  `registerPayment`), `cancelSubscriptionSchema` (reason 3..500),
+  `listSubscriptionsQuerySchema`, `updateTenantSubscriptionSchema` e
+  `cancelTenantSubscriptionSchema` (reason opcional, máx. 500).
+- Migration `20261010131027_etapa9_subscriptions`: enums
+  `SubscriptionStatus` e `TenantSubscriptionStatus`; modelos
+  `SubscriptionPlan` e `Subscription` (tenant-scoped, FK `Restrict`,
+  índices por empresa e `[clientId]`), `TenantPlan` e
+  `TenantSubscription` (**globais por decisão documentável** —
+  `TenantSubscription.companyId` `@unique`, exceção à regra "todo
+  modelo tem companyId"); `CashMovement.subscriptionId` (coluna
+  aditiva, FK `SetNull` + índice `[companyId, subscriptionId]`);
+  seed dos 3 `TenantPlan` iniciais (essencial 79,90 / profissional
+  149,90 / completo 249,90, 30 dias, ids fixos) na própria migration;
+  aplicada em `petflow` (dev); `npm run db:validate` OK.
+- Módulo `apps/api/src/subscriptions` (`SubscriptionsModule`):
+  - `GET/POST /api/subscription-plans` (POST 201, AdminGuard; nome
+    único por empresa → 409), `GET /:id`, `PATCH /:id` e
+    `PATCH /:id/status` (escrita ADMIN; cross-tenant → 404).
+  - `GET /api/subscriptions` (paginação + `status`/`clientId`/`search`)
+    e `GET /:id` (expiração lazy de assinaturas vencidas nas leituras).
+  - `POST /api/subscriptions` (201, AdminGuard): valida cliente ativo e
+    plano ativo; `registerPayment` cria `CashMovement` IN/MANUAL em
+    transação após `lockOpenCashSession` (caixa fechado → 409).
+  - `POST /:id/renew` (201): exige caixa aberto; estende o período a
+    partir de `max(now, endAt)`, incrementa `renewalCount`, grava
+    `lastPaymentAt` e registra movimento de caixa vinculado; assinatura
+    cancelada → 409.
+  - `POST /:id/cancel` (201): motivo 3..500; `updateMany` com guarda de
+    status → 409 em dupla corrida.
+- Módulo `apps/api/src/billing` (`BillingModule`): `GET /api/billing/plans`
+  (catálogo global ativo), `GET /api/billing/subscription` (404 se não
+  existir; expiração lazy), `PUT /api/billing/subscription` (AdminGuard;
+  upsert = troca de plano reinicia o período e reativa), `POST
+  .../renew` (201; cancelada → 409) e `POST .../cancel` (201; duplo →
+  409). Escrita do catálogo global não exposta (pendência de papel de
+  plataforma); sem gateway/limites de uso (pendência registrada).
+- Frontend: `/planos` (CRUD ADMIN de planos de cliente), `/assinaturas`
+  (lista com filtros de status/busca e paginação), `/assinaturas/nova`
+  (formulário com cliente/plano/opção de pagamento no caixa),
+  `/assinaturas/[id]` (detalhe, pagamentos, renovar e cancelar),
+  `/faturamento` (situação da assinatura da empresa + troca/renovação/
+  cancelamento de plano), cards "Assinaturas" e "Faturamento" na home e
+  badge do rodapé/cabeçalho para "Etapa 9 — Assinaturas"; DTOs novos em
+  `apps/web/src/lib/types.ts`.
+- Testes: `tests/subscriptions.test.ts` (18) e `tests/billing.test.ts`
+  (12) — CRUD de planos, validações, 404 cross-tenant, caixa fechado
+  (409), renovação/cancelamento, upsert/renew/cancel do billing e
+  guards ADMIN; `resetDatabase` cobre os modelos novos. Suíte completa:
+  **367/367 testes em 16 arquivos**.
+
 ## [Etapa 8] — 2026-10-10 — Agendamentos
 
 ### Adicionado

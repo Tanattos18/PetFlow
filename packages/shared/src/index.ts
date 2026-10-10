@@ -998,3 +998,107 @@ export const listAppointmentsQuerySchema = paginationQuerySchema
   })
   .superRefine(checkReportPeriod);
 export type ListAppointmentsQuery = z.infer<typeof listAppointmentsQuerySchema>;
+
+// ---------------------------------------------------------------------------
+// Etapa 9 — assinaturas e gestão comercial
+// ---------------------------------------------------------------------------
+
+export const subscriptionStatusSchema = z.enum(["ACTIVE", "EXPIRED", "CANCELLED"]);
+export type SubscriptionStatus = z.infer<typeof subscriptionStatusSchema>;
+
+export const subscriptionStatusLabels: Record<SubscriptionStatus, string> = {
+  ACTIVE: "Ativa",
+  EXPIRED: "Expirada",
+  CANCELLED: "Cancelada",
+};
+
+export const tenantSubscriptionStatusSchema = z.enum([
+  "ACTIVE",
+  "EXPIRED",
+  "CANCELLED",
+]);
+export type TenantSubscriptionStatus = z.infer<
+  typeof tenantSubscriptionStatusSchema
+>;
+
+export const tenantSubscriptionStatusLabels: Record<
+  TenantSubscriptionStatus,
+  string
+> = {
+  ACTIVE: "Ativa",
+  EXPIRED: "Expirada",
+  CANCELLED: "Cancelada",
+};
+
+export const SUBSCRIPTION_MIN_DURATION_DAYS = 1;
+export const SUBSCRIPTION_MAX_DURATION_DAYS = 3650;
+export const TENANT_PLAN_DEFAULT_DURATION_DAYS = 30;
+
+export const createSubscriptionPlanSchema = z.object({
+  name: nameField,
+  description: optionalText(1000),
+  price: priceFieldSchema,
+  durationDays: z.coerce
+    .number()
+    .int("Duração deve ser um número inteiro de dias")
+    .min(SUBSCRIPTION_MIN_DURATION_DAYS, "Duração mínima de 1 dia")
+    .max(SUBSCRIPTION_MAX_DURATION_DAYS, "Duração máxima de 3650 dias (10 anos)"),
+});
+export type CreateSubscriptionPlanInput = z.infer<
+  typeof createSubscriptionPlanSchema
+>;
+
+export const updateSubscriptionPlanSchema = createSubscriptionPlanSchema.partial();
+export type UpdateSubscriptionPlanInput = z.infer<
+  typeof updateSubscriptionPlanSchema
+>;
+
+export const listSubscriptionPlansQuerySchema = paginationQuerySchema.extend({
+  search: z.string().trim().max(120).optional(),
+  status: recordStatusSchema.optional(),
+  orderBy: z.enum(["name", "price", "createdAt"]).default("name"),
+  direction: z.enum(["asc", "desc"]).default("asc"),
+});
+export type ListSubscriptionPlansQuery = z.infer<
+  typeof listSubscriptionPlansQuerySchema
+>;
+
+export const createSubscriptionSchema = z.object({
+  clientId: z.string().trim().min(1, "Cliente é obrigatório").max(60),
+  planId: z.string().trim().min(1, "Plano é obrigatório").max(60),
+  startAt: z.string().trim().datetime({ offset: true }).optional(),
+  registerPayment: z.boolean().optional(),
+});
+export type CreateSubscriptionInput = z.infer<typeof createSubscriptionSchema>;
+
+export const cancelSubscriptionSchema = z.object({
+  reason: z
+    .string()
+    .trim()
+    .min(3, "Motivo é obrigatório para cancelamento")
+    .max(500, "Motivo deve ter no máximo 500 caracteres"),
+});
+export type CancelSubscriptionInput = z.infer<typeof cancelSubscriptionSchema>;
+
+export const listSubscriptionsQuerySchema = paginationQuerySchema.extend({
+  status: subscriptionStatusSchema.optional(),
+  clientId: z.string().trim().max(60).optional(),
+  search: z.string().trim().max(120).optional(),
+  orderBy: z.enum(["endAt", "createdAt"]).default("endAt"),
+  direction: z.enum(["asc", "desc"]).default("asc"),
+});
+export type ListSubscriptionsQuery = z.infer<typeof listSubscriptionsQuerySchema>;
+
+export const updateTenantSubscriptionSchema = z.object({
+  planId: z.string().trim().min(1, "Plano é obrigatório").max(60),
+});
+export type UpdateTenantSubscriptionInput = z.infer<
+  typeof updateTenantSubscriptionSchema
+>;
+
+export const cancelTenantSubscriptionSchema = z.object({
+  reason: optionalText(500),
+});
+export type CancelTenantSubscriptionInput = z.infer<
+  typeof cancelTenantSubscriptionSchema
+>;

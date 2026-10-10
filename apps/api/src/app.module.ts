@@ -14,6 +14,8 @@ import { ClientsModule } from "./clients/clients.module";
 import { PetsModule } from "./pets/pets.module";
 import { ServicesModule } from "./services/services.module";
 import { AppointmentsModule } from "./appointments/appointments.module";
+import { SubscriptionsModule } from "./subscriptions/subscriptions.module";
+import { BillingModule } from "./billing/billing.module";
 import { WhatsAppModule } from "./whatsapp/whatsapp.module";
 import { ReportsModule } from "./reports/reports.module";
 import { AuthGuard } from "./common/guards/auth.guard";
@@ -33,6 +35,8 @@ import { AuthGuard } from "./common/guards/auth.guard";
     PetsModule,
     ServicesModule,
     AppointmentsModule,
+    SubscriptionsModule,
+    BillingModule,
     WhatsAppModule,
     ReportsModule,
   ],

@@ -752,3 +752,90 @@ export interface AppointmentDto {
   createdBy: { id: string; name: string };
   cancelledBy: { id: string; name: string } | null;
 }
+
+// ---------------------------------------------------------------------------
+// Etapa 9 — assinaturas e gestão comercial
+// ---------------------------------------------------------------------------
+
+export type SubscriptionStatus = "ACTIVE" | "EXPIRED" | "CANCELLED";
+
+export const subscriptionStatusLabels: Record<SubscriptionStatus, string> = {
+  ACTIVE: "Ativa",
+  EXPIRED: "Expirada",
+  CANCELLED: "Cancelada",
+};
+
+export interface SubscriptionPlanDto {
+  id: string;
+  name: string;
+  description: string | null;
+  price: string;
+  durationDays: number;
+  status: RecordStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubscriptionPaymentDto {
+  id: string;
+  amount: string;
+  description: string;
+  cashSessionId: string;
+  createdAt: string;
+}
+
+export interface SubscriptionDto {
+  id: string;
+  clientId: string;
+  planId: string;
+  startAt: string;
+  endAt: string;
+  status: SubscriptionStatus;
+  cancelReason: string | null;
+  cancelledAt: string | null;
+  renewalCount: number;
+  lastPaymentAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  client: { id: string; name: string; phone: string | null; mobile: string | null };
+  plan: {
+    id: string;
+    name: string;
+    price: string;
+    durationDays: number;
+    status: RecordStatus;
+  };
+  payments?: SubscriptionPaymentDto[];
+}
+
+export interface TenantPlanDto {
+  id: string;
+  name: string;
+  description: string | null;
+  priceMonthly: string;
+  durationDays: number;
+  active: boolean;
+}
+
+export type TenantSubscriptionStatus = "ACTIVE" | "EXPIRED" | "CANCELLED";
+
+export const tenantSubscriptionStatusLabels: Record<TenantSubscriptionStatus, string> = {
+  ACTIVE: "Ativa",
+  EXPIRED: "Expirada",
+  CANCELLED: "Cancelada",
+};
+
+export interface TenantSubscriptionDto {
+  id: string;
+  companyId: string;
+  planId: string;
+  status: TenantSubscriptionStatus;
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  cancelReason: string | null;
+  cancelledAt: string | null;
+  changedByUserId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  plan: TenantPlanDto;
+}

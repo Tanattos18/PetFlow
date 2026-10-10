@@ -371,6 +371,68 @@ oficial em `Etapas_projeto/`).
       ARCHITECTURE, DEVELOPMENT, README)
 - [x] Commit e push (ver relatório final / PROJECT_STATUS)
 
+## Etapa 9 — Assinaturas e gestão comercial (2026-10-10)
+
+Escopo definido e aprovado na conversa com o proprietário (sem prompt
+oficial em `Etapas_projeto/`; opções "Ambos" e "pagamento via
+caixa/venda existente").
+
+- [x] Etapa 8 confirmada funcional (337/337 testes antes de iniciar;
+      auditoria de lint/typecheck/build/db:validate sem problemas)
+- [x] Decisões registradas: pagamento sempre pelo caixa existente (sem
+      gateway), `TenantPlan`/`TenantSubscription` globais como exceção
+      documentável à regra de `companyId`, catálogo global do billing
+      sem escrita via API, cancelamento com motivo obrigatório
+      (cliente) e opcional (billing), assinatura de cliente sem
+      edição de campos (cancelar + criar nova)
+- [x] Schemas Zod E9 em `@petflow/shared`: `subscription/
+      tenantSubscriptionStatusSchema` + labels, constantes de duração
+      (1..3650 e 30 dias), `create/update/listSubscriptionPlans`,
+      `create/listSubscriptions` (`startAt` opcional ISO,
+      `registerPayment`), `cancelSubscription` (reason 3..500),
+      `updateTenantSubscription`, `cancelTenantSubscription` (reason
+      opcional ≤ 500)
+- [x] Migration `20261010131027_etapa9_subscriptions`: enums
+      `SubscriptionStatus`/`TenantSubscriptionStatus`; modelos
+      `SubscriptionPlan`/`Subscription` (FK `Restrict`, índices por
+      empresa e `[clientId]`), `TenantPlan`/`TenantSubscription`
+      (globais, `companyId` `@unique`), `CashMovement.subscriptionId`
+      (FK `SetNull` + índice); seed dos 3 `TenantPlan` iniciais na
+      própria migration (bytes reescritos em UTF-8 após P3015); nota:
+      `petflow_test` recebeu via global-setup; `npm run db:validate` OK
+- [x] `GET/POST /api/subscription-plans` (201, AdminGuard; nome único
+      por empresa → 409), `GET /:id`, `PATCH /:id`,
+      `PATCH /:id/status`; cross-tenant → 404
+- [x] `GET /api/subscriptions` (filtros `status`/`clientId`/`search`,
+      paginação) e `GET /:id` com expiração lazy nas leituras
+- [x] `POST /api/subscriptions` (201): cliente ativo e plano ativo
+      validados; `registerPayment` cria `CashMovement` IN/MANUAL em
+      transação após `lockOpenCashSession` (caixa fechado → 409)
+- [x] `POST /:id/renew` (201): exige caixa aberto, estende a partir de
+      `max(now, endAt)`, `renewalCount+1`, `lastPaymentAt`, movimento
+      de caixa vinculado; cancelada → 409; `POST /:id/cancel` (201,
+      motivo 3..500, `updateMany` com guarda → dupla corrida 409)
+- [x] `GET /api/billing/plans`, `GET /api/billing/subscription` (404
+      se ausente; expiração lazy), `PUT /api/billing/subscription`
+      (AdminGuard; upsert reinicia período e reativa; valida plano),
+      `POST .../renew` (201; cancelada → 409), `POST .../cancel`
+      (201; duplo → 409); escrita do catálogo global não exposta
+- [x] Frontend: `/planos` (CRUD ADMIN), `/assinaturas` (filtros +
+      paginação), `/assinaturas/nova` (cliente/plano/opção de caixa),
+      `/assinaturas/[id]` (detalhe, pagamentos, renovar/cancelar),
+      `/faturamento` (situação + troca/renovação/cancelamento); cards
+      "Assinaturas" e "Faturamento" na home; bloco E9 em `lib/types.ts`;
+      badge "Etapa 9 — Assinaturas"
+- [x] Testes: 367/367 aprovados em PostgreSQL real (18 novos em
+       `tests/subscriptions.test.ts` + 12 em `tests/billing.test.ts`;
+       `resetDatabase` cobre `Subscription` e `TenantSubscription`)
+- [x] `npm run lint`, `npm run typecheck`, `npm run build`,
+      `npm run db:validate` OK; varredura de segredos sem achados
+      reais
+- [x] Documentação atualizada (CHANGELOG, STATUS, DATABASE, API,
+      ARCHITECTURE, DEVELOPMENT, README)
+- [x] Commit e push (ver relatório final / PROJECT_STATUS)
+
 ## Etapas futuras — módulos de negócio
 
 - [x] Cadastro de clientes e animais (Etapa 5)
@@ -380,7 +442,8 @@ oficial em `Etapas_projeto/`).
 - [x] Automação WhatsApp (Etapa 6 — Cloud API + fila + webhook + UI)
 - [x] Dashboard e relatórios (Etapa 7)
 - [x] Agendamentos (Etapa 8 — CRUD + conflito + lembretes + `/agenda`)
-- [ ] Assinaturas/multiempresa comercial (Etapa 9)
+- [x] Assinaturas/multiempresa comercial (Etapa 9 — planos,
+      assinaturas de cliente, billing do SaaS)
 
 > Regra: nenhuma etapa é iniciada sem autorização explícita; marcar itens aqui
 > apenas com evidência de execução.

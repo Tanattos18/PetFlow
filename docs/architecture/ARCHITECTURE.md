@@ -345,3 +345,43 @@ tests/        → testes compartilhados/integração
   form único (`AppointmentForm`) cobre novo/edição, pré-preenche a
   partir do registro e recarrega os pets quando o cliente muda
   (cliente/pet/serviço editáveis em qualquer status não-terminal).
+
+## Módulo assinaturas e billing (Etapa 9)
+
+- **Escopo aprovado na conversa** (sem prompt oficial; opções "Ambos"
+  e "pagamento via caixa/venda existente"): assinaturas recorrentes
+  dos **clientes** + billing da **empresa no SaaS**, sempre pelo caixa
+  existente — sem gateway, sem cartão, sem recorrência automática.
+- **Duas famílias com regras diferentes**:
+  - `SubscriptionPlan`/`Subscription` são tenant-scoped (padrão da
+    casa: `companyId` + FK `Restrict` + índices por empresa), escrita
+    com `AdminGuard`, leitura com sessão — espelho dos serviços da
+    Etapa 5 (`nameKey` único por empresa).
+  - `TenantPlan`/`TenantSubscription` são **globais por decisão
+    documentável** (exceção à regra "todo modelo tem companyId"): o
+    catálogo é da plataforma (seed na migration, escrita não exposta
+    via API nesta etapa) e a assinatura é única por empresa
+    (`companyId @unique`).
+- **Pagamento é caixa, sempre**: `registerPayment` na criação,
+  renovação e cobranças geram `CashMovement` `IN`/`MANUAL` com
+  `inCash: true` e `subscriptionId` vinculado (FK `SetNull`), sempre
+  dentro da transação e **após** `lockOpenCashSession` — a mesma
+  trava da Etapa 4; caixa fechado → 409, e nada de valor aceito do
+  cliente (preço vem do plano).
+- **Renovação empilha período**: novo início é `max(now, endAt)`
+  (renovar antes do fim não perde dias), `renewalCount + 1`,
+  `lastPaymentAt` e status volta a `ACTIVE`; assinatura cancelada é
+  definitiva (409) — reativação seria nova assinatura.
+- **Cancelamento auditado**: motivo 3..500 obrigatório (cliente) e
+  opcional (billing), gravado com `updateMany` condicional — dupla
+  corrida vira 409; autor e data persistidos.
+- **Expiração lazy, sem job**: leituras marcam `EXPIRED` quando o
+  período venceu; nenhum worker/cron foi adicionado (mesma filosofia
+  dos lembretes: só o que é necessário agora).
+- **Billing sem enforcement (pendência registrada)**: a assinatura do
+  tenant hoje é registro comercial — limites por plano (clientes,
+  usuários, módulos) não são cobrados no runtime ainda; o gating é a
+  próxima evolução natural quando o proprietário definir políticas.
+- **Frontend**: `/planos` (catálogo do cliente, CRUD ADMIN),
+  `/assinaturas` (+ `nova`, `[id]`) e `/faturamento` (catálogo global
+  + estado da assinatura da empresa); cards na home e badge da etapa.

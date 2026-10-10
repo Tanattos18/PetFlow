@@ -217,6 +217,33 @@ Etapa 1; os demais endpoints ficam em `/api/...`.
 - Testes novos em `tests/appointments.test.ts` (45) rodam no
   `petflow_test` via `npm test`; a migration é aplicada no setup.
 
+## Assinaturas e billing (Etapa 9)
+
+- Endpoints, regras de caixa e guards: `docs/architecture/API.md`.
+- Escopo aprovado na conversa (sem prompt oficial): assinaturas de
+  clientes **e** billing da empresa no SaaS ("Ambos"), pagamento
+  sempre pela caixa existente (sem gateway).
+- Escrita de planos/assinaturas de cliente é `AdminGuard`; leitura é
+  sessão; billing (`PUT`/`renew`/`cancel`) também é ADMIN.
+- Renovação/criação com `registerPayment` **exigem caixa aberto**
+  (409) — mesmo comportamento de vendas da Etapa 4; o preço sempre
+  vem do plano, nunca do cliente.
+- Cancelamento: motivo 3..500 obrigatório (assinatura de cliente);
+  duplo cancelamento/renovação de assinatura cancelada → 409.
+- Catálogo global do billing (`TenantPlan`) vem seedado pela
+  migration (essencial/profissional/completo); a escrita desse
+  catálogo não tem endpoint nesta etapa (pendência: papel de
+  plataforma).
+- Páginas novas: `/planos`, `/assinaturas`, `/assinaturas/nova`,
+  `/assinaturas/[id]`, `/faturamento`; home ganhou cards
+  "Assinaturas" e "Faturamento".
+- Migração da etapa: `20261010131027_etapa9_subscriptions` (enums +
+  `SubscriptionPlan`/`Subscription`/`TenantPlan`/`TenantSubscription`
+  + `CashMovement.subscriptionId` + seed de planos globais).
+- Testes novos: `tests/subscriptions.test.ts` (18) e
+  `tests/billing.test.ts` (12) rodam no `petflow_test` via `npm test`;
+  a migration é aplicada no setup.
+
 ## Estrutura rápida
 
 Ver `docs/architecture/ARCHITECTURE.md` e o `README.md` na raiz.

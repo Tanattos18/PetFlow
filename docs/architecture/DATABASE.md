@@ -1,5 +1,44 @@
 # Banco de dados — diretrizes e modelo atual
 
+## Modelos implementados (Etapa 9)
+
+Migration: `database/prisma/migrations/20261010131027_etapa9_subscriptions`
+(aditiva — cria enums/tabelas e uma coluna com FK `SetNull`; não
+altera nem remove dados existentes; inclui seed dos `TenantPlan`
+iniciais).
+
+| Modelo | Campos principais | Restrições/índices |
+|---|---|---|
+| `SubscriptionPlan` | `companyId` (FK `Restrict`), `name`, `nameKey`, `description?`, `price Decimal`, `durationDays Int` (1..3650), `status` (`RecordStatus`), `createdByUserId` (FK `Restrict`), timestamps | `@@unique([companyId, nameKey])` (nome único por empresa, case-insensitive) |
+| `Subscription` | `companyId` (FK `Restrict`), `clientId` (FK `Restrict`), `planId` (FK `Restrict`), `startAt`, `endAt`, `status` (enum `SubscriptionStatus`, default `ACTIVE`), `cancelReason?`, `cancelledAt?`, `cancelledByUserId?` (FK `SetNull`), `renewalCount Int @default(0)`, `lastPaymentAt?`, `createdByUserId` (FK `Restrict`), timestamps | índices `[companyId, status]`, `[companyId, endAt]`, `[clientId]`; sem unique — assinaturas ativas múltiplas por cliente são permitidas |
+| `TenantPlan` | `name`, `description?`, `priceMonthly Decimal`, `durationDays Int`, `active Boolean`, timestamps (**global — sem `companyId`**) | `name @unique`; seed na própria migration (ids fixos `tenantplan_essencial`/`_profissional`/`_completo`) |
+| `TenantSubscription` | `companyId` **@unique** (FK `Restrict`), `planId` (FK `Restrict`), `status` (enum `TenantSubscriptionStatus`, default `ACTIVE`), `currentPeriodStart`, `currentPeriodEnd`, `cancelReason?`, `cancelledAt?`, `changedByUserId?` (FK `SetNull`), timestamps | **global — exceção documentável** à regra "todo modelo tem companyId": catálogo é da plataforma, uma assinatura por empresa |
+
+Enums novos:
+
+- `SubscriptionStatus` / `TenantSubscriptionStatus`: `ACTIVE`,
+  `EXPIRED`, `CANCELLED` (expiração aplicada com *lazy update* nas
+  leituras, não por job).
+
+Alterações aditivas em modelos existentes:
+
+| Modelo | Campo adicionado | Observação |
+|---|---|---|
+| `CashMovement` | `subscriptionId String?` (FK → `Subscription`, `SetNull`) | Vincula pagamento/renovação de assinatura ao caixa; índice `[companyId, subscriptionId]` |
+
+Regras derivadas:
+
+- Pagamentos/renovações sempre criam `CashMovement` `IN` com
+  `inCash: true` e origem `MANUAL` dentro da mesma transação que
+  grava a assinatura, após o lock da sessão de caixa (`SetNull` no
+  FK porque cancelar apagando o vínculo não pode quebrar o caixa).
+- `TenantPlan`/`TenantSubscription` não têm `companyId` (decisão
+  registrada): o catálogo é global e a assinatura do tenant é única
+  por empresa via `companyId @unique`.
+- Relações novas em `Company` (`tenantSubscriptions`), `Client`
+  (`subscriptions`), `User` (`subscriptionPlansCreated`,
+  `subscriptionsCreated/cancelled`, `tenantSubscriptionsChanged`).
+
 ## Modelos implementados (Etapa 8)
 
 Migration: `database/prisma/migrations/20261010115308_etapa8_appointments`

@@ -353,6 +353,67 @@ Comportamentos importantes:
   variáveis → 400 caso contrário) e `reminderLeadMinutes`
   (5..40320, default 1440).
 
+## Assinaturas e billing (Etapa 9)
+
+Duas famílias: assinaturas dos **clientes do pet shop** (tenant-scoped,
+escrita com `AdminGuard`) e **billing da empresa no SaaS** (catálogo
+global + assinatura única por empresa). Pagamentos usam o caixa
+existente (sem gateway); `companyId` sempre da sessão.
+
+### Planos e assinaturas de clientes
+
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| GET | `/api/subscription-plans` | sessão | Lista; `search`, `status`, `page`, `pageSize`, `orderBy` (`name`/`price`/`createdAt`) |
+| POST | `/api/subscription-plans` | ADMIN | Cria (201): `name` único por empresa → 409, `price`, `durationDays` (1..3650), `description?` |
+| GET | `/api/subscription-plans/:id` | sessão | Detalhe (404 cross-tenant) |
+| PATCH | `/api/subscription-plans/:id` | ADMIN | Edição parcial (404 cross-tenant) |
+| PATCH | `/api/subscription-plans/:id/status` | ADMIN | `ACTIVE`/`INACTIVE` |
+| GET | `/api/subscriptions` | sessão | Lista; `status`, `clientId`, `search`, `page`, `pageSize`; expiração lazy |
+| POST | `/api/subscriptions` | ADMIN | Cria (201): `clientId`, `planId`, `startAt?` (ISO), `registerPayment?` |
+| GET | `/api/subscriptions/:id` | sessão | Detalhe com `payments` (404 cross-tenant; expiração lazy) |
+| POST | `/api/subscriptions/:id/renew` | ADMIN | Renova (201): exige caixa aberto; cancelada → 409 |
+| POST | `/api/subscriptions/:id/cancel` | ADMIN | Cancela (201): `reason` 3..500; duplo → 409 |
+
+Comportamentos importantes:
+
+- **Criação**: cliente e plano devem estar ativos e da empresa
+  (cross-tenant → 404, inativo → 400); `startAt` opcional (padrão
+  `now`); `registerPayment: true` cria `CashMovement` `IN`/`MANUAL`
+  (`inCash: true`, origem `MANUAL`, `subscriptionId` vinculado) em
+  transação **após** `lockOpenCashSession` — caixa fechado → **409**.
+- **Renovação** (transação): trava a sessão de caixa, novo período
+  começa em `max(now, endAt)`, `status` volta a `ACTIVE`,
+  `renewalCount + 1`, `lastPaymentAt = now` e movimento de caixa
+  "Renovação de assinatura: cliente — plano"; assinatura `CANCELLED`
+  → **409**; caixa fechado → **409**.
+- **Cancelamento**: `updateMany({ id, companyId, status: ACTIVE })` —
+  0 linhas → **409** (dupla corrida/estado inválido); grava motivo,
+  `cancelledAt` e `cancelledByUserId`.
+- **Expiração lazy**: leituras (`GET` lista/detalhe) marcam
+  `EXPIRED` quando `endAt < now`; a mudança de status também reage
+  em `GET` individual.
+
+### Billing da empresa no SaaS (globais)
+
+| Método | Rota | Acesso | Descrição |
+|---|---|---|---|
+| GET | `/api/billing/plans` | sessão | Catálogo global ativo (`{ items }`), ordenado por preço |
+| GET | `/api/billing/subscription` | sessão | Assinatura da empresa (404 se ausente; expiração lazy) |
+| PUT | `/api/billing/subscription` | ADMIN | Upsert (troca de plano reinicia o período e reativa; plano inexistente → 404, inativo → 400) |
+| POST | `/api/billing/subscription/renew` | ADMIN | Renova (201): novo período a partir de `max(now, end)`; cancelada → 409 |
+| POST | `/api/billing/subscription/cancel` | ADMIN | Cancela (201): `reason?` ≤ 500; duplo → 409 |
+
+Comportamentos importantes:
+
+- `TenantPlan`/`TenantSubscription` são **globais por decisão
+  documentável** (exceção à regra de `companyId`): o catálogo é da
+  plataforma e a assinatura é única por empresa (`companyId @unique`).
+- Escrita do catálogo global **não é exposta** nesta etapa (exige
+  papel de plataforma — pendência registrada).
+- Sem gateway e sem enforcement de limites por plano ainda — a
+  assinatura é registro de comercial (pendências registradas).
+
 ## Padrão para módulos futuros
 
 1. Modelo sempre com `companyId` + FK `Restrict` e índices por empresa.

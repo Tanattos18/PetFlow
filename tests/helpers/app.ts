@@ -36,6 +36,10 @@ export async function resetDatabase(prisma: PrismaService): Promise<void> {
   await prisma.product.deleteMany();
   // appointment referencia pet/client/service e users (FK Restrict)
   await prisma.appointment.deleteMany();
+  // subscription referencia client/plan/users; cashMovement referencia subscription (SetNull)
+  await prisma.subscription.deleteMany();
+  await prisma.tenantSubscription.deleteMany();
+  await prisma.subscriptionPlan.deleteMany();
   await prisma.pet.deleteMany();
   await prisma.client.deleteMany();
   await prisma.service.deleteMany();

@@ -2,68 +2,67 @@
 
 ## Etapa atual
 
-**Etapa 8 — Agendamentos** — CONCLUÍDA
+**Etapa 9 — Assinaturas e gestão comercial** — CONCLUÍDA
 (aguardando aprovação do proprietário para avançar).
 
 Data: 2026-10-10.
 
 Etapas anteriores: Etapa 0 (2026-10-09), Etapa 1 (2026-10-09),
 Etapa 2 (2026-10-09), Etapa 3 (2026-10-09), Etapa 4 (2026-10-09),
-Etapa 5 (2026-10-09), Etapa 6 (2026-10-09), Etapa 7 (2026-10-09).
+Etapa 5 (2026-10-09), Etapa 6 (2026-10-09), Etapa 7 (2026-10-09),
+Etapa 8 (2026-10-10).
 
 Escopo (aprovado na conversa — sem prompt oficial em
-`Etapas_projeto/`): módulo de agendamentos com agenda diária,
-conflito de horário da empresa inteira em transação com lock,
-transições de status/cancelamento com motivo, lembretes automáticos
-pela fila WhatsApp existente (worker intacto), integração com
-dashboard/relatórios e frontend `/agenda`; decisões registradas —
-conflito empresa-inteira, serviços em vendas/PDV fora da etapa,
-`durationMinutes` obrigatório.
+`Etapas_projeto/`): assinaturas recorrentes de clientes do pet shop
+(planos, criação com pagamento opcional no caixa, renovação via caixa
+e cancelamento com motivo) **e** billing da própria empresa no SaaS
+(catálogo de planos globais seedados e assinatura do tenant, com
+troca/renovação/cancelamento). Pagamento sempre pela
+caixa/venda existente (sem gateway); decisões registradas —
+`TenantPlan`/`TenantSubscription` globais como exceção documentável,
+catálogo global do billing sem escrita via API nesta etapa,
+cancelamento com motivo obrigatório (cliente) e opcional (billing).
 
-## Entregas concluídas (Etapa 8)
+## Entregas concluídas (Etapa 9)
 
-- [x] Schemas Zod E8 em `@petflow/shared` (seção "Etapa 8"):
-      `localDateTimeField` (calendário real), `create/update/cancel/
-      update-status/listAppointments`, `appointmentStatusSchema`,
-      constantes de status bloqueante/terminal, constantes de
-      lembrete (3 variáveis, lead 5..40320 default 1440) e
-      `updateWhatsAppConfigSchema` com `reminderTemplateId`/
-      `reminderLeadMinutes`.
-- [x] Migration `20261010115308_etapa8_appointments`: enum
-      `AppointmentStatus`, modelo `Appointment` (FK `Restrict`,
-      índices por empresa/status/cliente/pet) e campos de lembrete em
-      `WhatsAppConfig`; aplicada em `petflow` (dev); `db:validate` OK.
-- [x] Módulo `apps/api/src/appointments` (somente sessão, sem
-      `AdminGuard`): `POST` (201, `startAt`/`endAt` calculados no
-      servidor, passado recusado), `GET` (filtros `from/to`, status,
-      cliente/pet/serviço, busca, paginação), `GET :id`, `PATCH :id`
-      (parcial + reagendamento), `PATCH :id/status`
-      (CONFIRMED/COMPLETED/NO_SHOW), `POST :id/cancel` (201, motivo
-      3..500); conflito da empresa inteira com `FOR UPDATE` na
-      `Company` → 409 (fim-início exato permitido; terminal/cancelado
-      não bloqueia).
-- [x] Lembretes: `syncReminder` na mesma transação de cada mutação,
-      chave `appointment-reminder:<id>` por empresa,
-      `origin=SERVICE_REMINDER`, `nextAttemptAt = max(now, startAt −
-      lead)`, variáveis pet/serviço/data-hora local, revalidação de
-      config/template/consentimento/telefone a cada mutação, atualiza
-      pendente ao reagendar, cancela ao cancelar/concluir ou tornar
-      inelegível; falha só loga (CRUD nunca falha); worker não
-      alterado.
-- [x] `GET/PUT /api/whatsapp/config` com campos de lembrete; PUT
-      valida template da empresa com exatamente 3 variáveis (400).
-- [x] Relatórios: `summary.services` (contagens por status,
-      zero-fill), `modules.servicesRealized = {available: true,
-      reason: null}`; `clients.services` substitui
-      `servicesRealized`.
-- [x] Frontend: `/agenda`, `/agenda/novo`, `/agenda/[id]`,
-      `/agenda/[id]/editar` + `components/AppointmentForm.tsx`,
-      `lib/format.ts` (helpers de dia local), `lib/types.ts` (bloco
-      E8); home card "Agendamentos", badge "Etapa 8 — Agendamentos",
-      `/whatsapp` com template de lembrete e antecedência,
-      `/dashboard` e `/relatorios` com contagens reais.
-- [x] `resetDatabase` cobre `Appointment` e o novo FK de template de
-      lembrete.
+- [x] Schemas Zod E9 em `@petflow/shared` (seção "Etapa 9"):
+      `subscriptionStatusSchema`/`tenantSubscriptionStatusSchema` +
+      labels, `SUBSCRIPTION_MIN/MAX_DURATION_DAYS` (1/3650),
+      `TENANT_PLAN_DEFAULT_DURATION_DAYS=30`, `create/update/
+      listSubscriptionPlans*`, `create/listSubscriptions*`
+      (`startAt` opcional ISO, `registerPayment`), `cancelSubscriptionSchema`
+      (reason 3..500), `updateTenantSubscriptionSchema` e
+      `cancelTenantSubscriptionSchema` (reason opcional ≤ 500).
+- [x] Migration `20261010131027_etapa9_subscriptions`: enums
+      `SubscriptionStatus`/`TenantSubscriptionStatus`; modelos
+      `SubscriptionPlan`/`Subscription` (FK `Restrict`, índices por
+      empresa e `[clientId]`), `TenantPlan`/`TenantSubscription`
+      (globais; `companyId` `@unique`); `CashMovement.subscriptionId`
+      (FK `SetNull` + índice `[companyId, subscriptionId]`); seed dos 3
+      `TenantPlan` iniciais na própria migration; aplicada em `petflow`
+      (dev); `db:validate` OK.
+- [x] Módulo `apps/api/src/subscriptions` (escrita com `AdminGuard`):
+      `GET/POST /api/subscription-plans` (201; nome único por empresa →
+      409), `GET/PATCH /:id`, `PATCH /:id/status`; `GET /api/subscriptions`
+      (filtros `status`/`clientId`/`search` + paginação) e `GET /:id`
+      (expiração lazy); `POST /api/subscriptions` (201; cliente/plano
+      ativos; `registerPayment` em transação com `lockOpenCashSession`
+      → caixa fechado 409); `POST /:id/renew` (201; estende a partir de
+      `max(now, endAt)`, `renewalCount+1`, movimento de caixa
+      vinculado; cancelada → 409); `POST /:id/cancel` (201; motivo
+      3..500, guarda de status → 409). Cross-tenant → 404.
+- [x] Módulo `apps/api/src/billing`: `GET /api/billing/plans`,
+      `GET /api/billing/subscription` (404 se ausente; expiração lazy),
+      `PUT /api/billing/subscription` (AdminGuard; upsert reinicia o
+      período e reativa), `POST .../renew` (201; cancelada → 409),
+      `POST .../cancel` (201; duplo → 409); escrita do catálogo global
+      não exposta.
+- [x] Frontend: `/planos` (CRUD ADMIN), `/assinaturas` (filtros +
+      paginação), `/assinaturas/nova`, `/assinaturas/[id]` (detalhe,
+      pagamentos, renovar/cancelar), `/faturamento` (situação + troca/
+      renovação/cancelamento), cards na home, badge "Etapa 9 —
+      Assinaturas"; DTOs E9 em `lib/types.ts`.
+- [x] `resetDatabase` cobre `Subscription` e `TenantSubscription`.
 
 ## Testes executados
 
@@ -71,23 +70,20 @@ conflito empresa-inteira, serviços em vendas/PDV fora da etapa,
 |---|---|---|
 | Schema Prisma válido | `npm run db:validate` | OK |
 | Lint | `npm run lint` | OK (0 erros) |
-| Typecheck | `npm run typecheck` | OK (4 workspaces) |
-| Testes (PostgreSQL real) | `npm test` | 337/337 aprovados (14 arquivos) |
-| Build | `npm run build` | OK (shared, api, web, worker) |
+| Typecheck | `npm run typecheck` | OK (5 workspaces) |
+| Testes (PostgreSQL real) | `npm test` | 367/367 aprovados (16 arquivos) |
+| Build | `npm run build` | OK (shared, whatsapp, api, web, worker) |
 | Varredura de segredos | grep de credenciais | sem achados reais |
 
-Cobertura dos testes novos (45, `tests/appointments.test.ts`):
-criação e validações (passado, cliente/pet/serviço inválidos ou
-inativos, cross-tenant 404), conflito de empresa inteira (sobreposição
-409, fim-início exato 201, terminal/cancelado não bloqueia,
-isolamento entre empresas), lista com filtros/busca/paginação,
-edição e reagendamento (revalida conflito; terminal 409), transições
-de status (invalidos 400, terminal 409), cancelamento (motivo
-obrigatório, duplo 409) e lembretes (PENDING única por idempotência,
-sem config/template aprovado/consentimento → sem fila, reagendar
-atualiza, confirmar mantém, cancelar/concluir cancela a pendente,
-opt-out e lead inválidos 400). Asserts de `servicesRealized`
-atualizados em `tests/reports.test.ts`.
+Cobertura dos testes novos (30): `tests/subscriptions.test.ts` (18) —
+CRUD de planos (nome duplicado 409, escrita só ADMIN, cross-tenant
+404), criação de assinatura (validações, cliente/plano inativos,
+`registerPayment` com caixa aberto e 409 fechado), listagem com
+filtros, renovação (período, contador, movimento de caixa, cancelada
+409, caixa fechado 409) e cancelamento (motivo obrigatório, duplo
+409); `tests/billing.test.ts` (12) — catálogo global, GET 404,
+upsert/troca de plano (reinicia período, valida plano), renew
+(cancelada 409, expiração lazy), cancel (duplo 409) e guards ADMIN.
 
 ## Pendências conhecidas
 
@@ -107,8 +103,8 @@ atualizados em `tests/reports.test.ts`.
   apenas 11 dígitos) — avaliar em etapa avançada.
 - Duplicidade de clientes: janela de corrida aceita (sem unique duro de
   `nameKey`).
-- Itens de serviço em vendas/PDV: fora do escopo da Etapa 8 (decisão
-  registrada); venda de serviço continua pelo catálogo de produtos.
+- Itens de serviço em vendas/PDV: continua fora; venda de serviço
+  segue pelo catálogo de produtos (decisão registrada na Etapa 8).
 - Agenda: visão por dia apenas (semana/mês, recorrência, profissionais
   e horário de funcionamento ficam para etapa futura).
 - Lembretes: antecipação fixa por empresa (sem janela de silêncio
@@ -123,6 +119,14 @@ atualizados em `tests/reports.test.ts`.
   do financeiro — limitação de dados de desenvolvimento.
 - CSV de caixa, clientes e WhatsApp: não implementado (opcional no
   escopo; JSON cobre os casos).
+- **Billing (Etapa 9)**: escrita do catálogo global `TenantPlan` não
+  exposta via API (exige papel de plataforma); gating/limites de uso
+  por plano (clientes, usuários, módulos) não implementados — a
+  assinatura do tenant hoje é registro, ainda sem enforcement.
+- **Assinaturas (Etapa 9)**: pagamento sempre em Dinheiro no caixa
+  (sem escolha de método/cartão); renovação manual, sem cobrança
+  recorrente automática; assinatura de cliente não tem edição de
+  campos (cancelar + criar nova, decisão registrada).
 - CI e deploy (contínuos).
 
 ## Git
@@ -146,12 +150,15 @@ atualizados em `tests/reports.test.ts`.
 - `a186e52` docs: registra push da etapa 7
 - `cb018e5` feat(etapa-8): implementa agendamentos com conflito, lembretes e agenda
 - `671b3d6` docs: registra hash do commit da etapa 8
-- Push confirmado: `a186e52..671b3d6 main -> main` (inclui a Etapa 8).
-- Push anterior: `2287bec..016ecaf main -> main` (inclui a Etapa 7).
+- `fcd468b` docs: registra push da etapa 8
+- Push confirmado: `671b3d6..fcd468b main -> main` (inclui a Etapa 8).
+- Push anterior: `a186e52..671b3d6 main -> main` (inclui a Etapa 8).
 
 ## Próxima etapa autorizada
 
-**Etapa 9 — Assinaturas** — a iniciar somente após aprovação
-explícita do proprietário (roadmap: 6=WhatsApp ✅, 7=Dashboard ✅,
-8=Agendamentos ✅, 9=Assinaturas — conforme roadmap do README;
-prompt oficial da Etapa 9 ainda não localizado em `Etapas_projeto/`).
+**Nenhuma — as 9 etapas do roadmap estão concluídas.**
+Próximos passos possíveis (aguardando decisão do proprietário):
+pendências acima (CI/deploy, enforcement de billing, gateway de
+pagamento, recorrência automática) ou novas funcionalidades fora do
+roadmap; `prompt oficial da Etapa 9` não foi localizado em
+`Etapas_projeto/` — escopo aprovado na conversa.

@@ -61,6 +61,18 @@ const plannedModules = [
     href: "/agenda",
     available: true,
   },
+  {
+    name: "Assinaturas",
+    description: "Planos recorrentes e assinaturas de clientes",
+    href: "/assinaturas",
+    available: true,
+  },
+  {
+    name: "Faturamento",
+    description: "Assinatura da empresa no PetFlow (billing do SaaS)",
+    href: "/faturamento",
+    available: true,
+  },
 ];
 
 export default function HomePage() {

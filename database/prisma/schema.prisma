@@ -156,6 +156,18 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
+enum SubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum TenantSubscriptionStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
 model Company {
   id        String        @id @default(cuid())
   name      String
@@ -180,6 +192,9 @@ model Company {
   whatsappConsents     WhatsAppConsent[]
   whatsappWebhookEvents WhatsAppWebhookEvent[]
   appointments         Appointment[]
+  subscriptionPlans    SubscriptionPlan[]
+  subscriptions        Subscription[]
+  tenantSubscription   TenantSubscription?
 }
 
 model User {
@@ -207,6 +222,10 @@ model User {
   whatsappMessagesCancelled WhatsAppMessage[] @relation("WhatsAppMessageCancelledBy")
   appointmentsCreated      Appointment[] @relation("AppointmentCreatedBy")
   appointmentsCancelled    Appointment[] @relation("AppointmentCancelledBy")
+  subscriptionPlansCreated SubscriptionPlan[] @relation("SubscriptionPlanCreatedBy")
+  subscriptionsCreated     Subscription[] @relation("SubscriptionCreatedBy")
+  subscriptionsCancelled   Subscription[] @relation("SubscriptionCancelledBy")
+  tenantSubscriptionChanged TenantSubscription[] @relation("TenantSubscriptionChangedBy")
 
   @@unique([companyId, email])
   @@index([companyId, status])
@@ -288,6 +307,7 @@ model Client {
   whatsappConsent WhatsAppConsent?
   whatsappMessages WhatsAppMessage[]
   appointments Appointment[]
+  subscriptions Subscription[]
 
   @@index([companyId, nameKey])
   @@index([companyId, status])
@@ -507,6 +527,8 @@ model CashMovement {
   justification    String?
   saleId           String?
   sale             Sale?              @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  subscriptionId   String?
+  subscription     Subscription?      @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   reversalOfId     String?
   reversalOf       CashMovement?      @relation("MovementReversal", fields: [reversalOfId], references: [id], onDelete: Restrict)
   reversals        CashMovement[]     @relation("MovementReversal")
@@ -522,6 +544,90 @@ model CashMovement {
   @@index([companyId, createdAt])
   @@index([companyId, cashSessionId])
   @@index([companyId, saleId])
+  @@index([companyId, subscriptionId])
+}
+
+model SubscriptionPlan {
+  id        String       @id @default(cuid())
+  companyId String
+  company   Company      @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  name      String
+  nameKey   String
+  description String?
+  price     Decimal      @db.Decimal(12, 2)
+  durationDays Int
+  status    RecordStatus @default(ACTIVE)
+  createdByUserId String
+  createdBy User         @relation("SubscriptionPlanCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  subscriptions Subscription[]
+
+  @@unique([companyId, nameKey])
+  @@index([companyId, status])
+  @@index([companyId, name])
+}
+
+model Subscription {
+  id        String             @id @default(cuid())
+  companyId String
+  company   Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  clientId  String
+  client    Client             @relation(fields: [clientId], references: [id], onDelete: Restrict)
+  planId    String
+  plan      SubscriptionPlan   @relation(fields: [planId], references: [id], onDelete: Restrict)
+  startAt   DateTime
+  endAt     DateTime
+  status    SubscriptionStatus @default(ACTIVE)
+  cancelReason String?
+  cancelledAt   DateTime?
+  cancelledByUserId String?
+  cancelledBy User?            @relation("SubscriptionCancelledBy", fields: [cancelledByUserId], references: [id], onDelete: SetNull)
+  createdByUserId String
+  createdBy User               @relation("SubscriptionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  renewalCount Int             @default(0)
+  lastPaymentAt DateTime?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+  payments CashMovement[]
+
+  @@index([companyId, status, endAt])
+  @@index([clientId])
+  @@index([companyId, createdAt])
+}
+
+model TenantPlan {
+  id           String   @id @default(cuid())
+  name         String
+  nameKey      String   @unique
+  description  String?
+  priceMonthly Decimal  @db.Decimal(12, 2)
+  durationDays Int      @default(30)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  tenantSubscriptions TenantSubscription[]
+
+  @@index([active])
+}
+
+model TenantSubscription {
+  id        String                 @id @default(cuid())
+  companyId String                 @unique
+  company   Company                @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  planId    String
+  plan      TenantPlan             @relation(fields: [planId], references: [id], onDelete: Restrict)
+  status    TenantSubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelReason String?
+  cancelledAt DateTime?
+  changedByUserId String?
+  changedBy User?                  @relation("TenantSubscriptionChangedBy", fields: [changedByUserId], references: [id], onDelete: SetNull)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+
+  @@index([status, currentPeriodEnd])
 }
 
 model WhatsAppConfig {
